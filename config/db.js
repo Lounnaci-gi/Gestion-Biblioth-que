@@ -1,20 +1,31 @@
 require('dotenv').config();
-const sql = require('mssql/msnodesqlv8');
+const sql = require('mssql');
 
-const driver = process.env.DB_DRIVER || 'ODBC Driver 17 for SQL Server';
-const server = process.env.DB_SERVER || 'RECOUVREMENT\\SQLEXPRESS';
+const server = process.env.DB_SERVER || 'DESKTOP-QROBQA9\\SQLEXPRESS';
 const database = process.env.DB_DATABASE || 'GestionBibliotheque';
-const trustCert = process.env.DB_TRUST_CERT !== 'false' ? 'Yes' : 'No';
+const trustCert = process.env.DB_TRUST_CERT !== 'false';
 
-const connectionString = process.env.DB_USER && process.env.DB_PASSWORD
-  ? `Driver={${driver}};Server=${server};Database=${database};Uid=${process.env.DB_USER};Pwd=${process.env.DB_PASSWORD};TrustServerCertificate=${trustCert};`
-  : `Driver={${driver}};Server=${server};Database=${database};Trusted_Connection=Yes;TrustServerCertificate=${trustCert};`;
+const config = {
+  server,
+  database,
+  options: {
+    trustServerCertificate: trustCert,
+    encrypt: false,
+  },
+};
+
+if (process.env.DB_USER && process.env.DB_PASSWORD) {
+  config.user = process.env.DB_USER;
+  config.password = process.env.DB_PASSWORD;
+} else {
+  config.options.trustedConnection = true;
+}
 
 let pool = null;
 
 async function getPool() {
   if (!pool) {
-    pool = await sql.connect({ connectionString });
+    pool = await sql.connect(config);
   }
   return pool;
 }

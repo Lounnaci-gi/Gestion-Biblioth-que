@@ -1,33 +1,32 @@
 require('dotenv').config();
-const sqlNative = require('msnodesqlv8');
+const sql = require('mssql');
 
-const server = process.env.DB_SERVER || 'RECOUVREMENT\\SQLEXPRESS';
-const db = process.env.DB_DATABASE || 'GestionBibliotheque';
+const server = process.env.DB_SERVER || 'DESKTOP-QROBQA9\\SQLEXPRESS';
+const database = process.env.DB_DATABASE || 'GestionBibliotheque';
+const config = {
+  server,
+  database,
+  options: {
+    trustServerCertificate: process.env.DB_TRUST_CERT !== 'false',
+    encrypt: false,
+  },
+};
 
-const variants = [
-  `Driver={ODBC Driver 17 for SQL Server};Server=${server};Database=${db};Trusted_Connection=Yes;TrustServerCertificate=Yes;`,
-  `Driver={ODBC Driver 18 for SQL Server};Server=${server};Database=${db};Trusted_Connection=Yes;Encrypt=Yes;TrustServerCertificate=Yes;`,
-  `Driver={SQL Server};Server=${server};Database=${db};Trusted_Connection=Yes;`,
-];
-
-function query(cs) {
-  return new Promise((resolve, reject) => {
-    sqlNative.query(cs, 'SELECT @@SERVERNAME AS srv, DB_NAME() AS db', (err, rows) => {
-      if (err) reject(err);
-      else resolve(rows);
-    });
-  });
+if (process.env.DB_USER && process.env.DB_PASSWORD) {
+  config.user = process.env.DB_USER;
+  config.password = process.env.DB_PASSWORD;
+} else {
+  config.options.trustedConnection = true;
 }
 
 (async () => {
-  for (const cs of variants) {
-    const label = cs.match(/Driver=\{([^}]+)\}/)[1];
-    try {
-      const rows = await query(cs);
-      console.log('OK with', label, rows);
-      break;
-    } catch (err) {
-      console.log('FAIL with', label, ':', err.message || err);
-    }
+  try {
+    const pool = await sql.connect(config);
+    const result = await pool.request().query('SELECT @@SERVERNAME AS srv, DB_NAME() AS db');
+    console.log('Connexion SQL Server OK', result.recordset[0]);
+    await pool.close();
+  } catch (err) {
+    console.error('Échec de connexion SQL Server:', err.message || err);
+    process.exit(1);
   }
 })();

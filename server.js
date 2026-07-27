@@ -14,6 +14,40 @@ app.use('/api/adherents', require('./routes/adherents'));
 app.use('/api/emprunts', require('./routes/emprunts'));
 app.use('/api/stats', require('./routes/stats'));
 
+app.get('/api/settings', (_req, res) => {
+  const fs = require('fs');
+  const path = require('path');
+  const filePath = path.join(__dirname, 'data', 'settings.json');
+  try {
+    const data = fs.readFileSync(filePath, 'utf8');
+    res.json(JSON.parse(data));
+  } catch (err) {
+    res.status(500).json({ error: 'Impossible de charger les paramètres' });
+  }
+});
+
+app.put('/api/settings', (req, res) => {
+  const fs = require('fs');
+  const path = require('path');
+  const filePath = path.join(__dirname, 'data', 'settings.json');
+  try {
+    if (!req.body || typeof req.body !== 'object') {
+      return res.status(400).json({ error: 'Données invalides' });
+    }
+    fs.writeFileSync(filePath, JSON.stringify(req.body, null, 2));
+    res.json(req.body);
+  } catch (err) {
+    res.status(500).json({ error: 'Impossible de sauvegarder les paramètres' });
+  }
+});
+
+app.use((err, _req, res, _next) => {
+  if (err && err.status === 400 && err.type === 'entity.parse.failed') {
+    return res.status(400).json({ error: 'JSON invalide' });
+  }
+  res.status(500).json({ error: 'Erreur serveur' });
+});
+
 app.get('/api/health', async (_req, res) => {
   try {
     await getPool();

@@ -1,0 +1,9 @@
+{
+  "etablissement": "Lycée Hassan II",
+  "type": "Lycée",
+  "ville": "Rabat",
+  "adresse": "Rue de test",
+  "telephone": "0600000000",
+  "email": "contact@example.com",
+  "site": "https://example.com"
+}

@@ -7,7 +7,7 @@ router.get('/', async (_req, res) => {
   try {
     const pool = await getPool();
     const result = await pool.request().query(`
-      SELECT ID_Adherent, Nom, Prenom, Email, Telephone, Date_Adhesion, Statut
+      SELECT ID_Adherent, Nom, Prenom, Email, Telephone, Date_Adhesion, Statut, Date_Modification
       FROM Adherents
       ORDER BY Nom, Prenom
     `);

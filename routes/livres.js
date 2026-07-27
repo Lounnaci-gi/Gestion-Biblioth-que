@@ -8,7 +8,7 @@ router.get('/', async (_req, res) => {
     const pool = await getPool();
     const result = await pool.request().query(`
       SELECT ID_Livre, Titre, ISBN, Auteur, Editeur, Annee_Publication,
-             Quantite_Totale, Quantite_Disponible, Date_Creation
+             Quantite_Totale, Quantite_Disponible, Date_Creation, Date_Modification
       FROM Livres
       ORDER BY Titre
     `);
