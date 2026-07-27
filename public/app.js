@@ -3,6 +3,11 @@ let currentView = 'dashboard';
 let editId = null;
 const Swal = window.Swal;
 
+let livresCurrentPage = 1;
+const LIVRES_PER_PAGE = 20;
+let allLivres = [];
+let livresSelectedCategory = '';
+
 const titles = {
   dashboard: 'لوحة التحكم',
   livres: 'فهرس الكتب',
@@ -138,14 +143,105 @@ async function loadDashboard() {
 }
 
 async function loadLivres() {
-  const livres = await api('/livres');
-  document.getElementById('livres-table').innerHTML = livres.length
-    ? `<table class="min-w-full text-sm text-slate-600"><thead><tr class="text-right text-slate-500">
-        <th class="px-3 py-2">العنوان</th><th class="px-3 py-2">المؤلف</th><th class="px-3 py-2">ISBN</th><th class="px-3 py-2">السنة</th><th class="px-3 py-2">المخزون</th><th class="px-3 py-2">المتاح</th><th class="px-3 py-2">الإنشاء / التحديث</th><th class="px-3 py-2"></th>
-      </tr></thead><tbody>
-      ${livres.map((l) => `<tr class="border-t border-orange-100"><td class="px-3 py-2"><strong class="text-slate-900">${l.Titre}</strong>${l.Editeur ? `<br><span class="text-slate-500">${l.Editeur}</span>` : ''}</td><td class="px-3 py-2">${l.Auteur}</td><td class="px-3 py-2">${l.ISBN}</td><td class="px-3 py-2">${l.Annee_Publication || '—'}</td><td class="px-3 py-2">${l.Quantite_Totale}</td><td class="px-3 py-2">${l.Quantite_Disponible}</td><td class="px-3 py-2"><div class="text-xs text-slate-500">إنشاء: ${fmtDate(l.Date_Creation)}</div><div class="text-xs text-slate-400">تحديث: ${fmtDate(l.Date_Modification)}</div></td><td class="px-3 py-2"><div class="flex justify-end gap-2"><button class="rounded-xl border border-orange-200 bg-orange-50 px-3 py-1.5 text-xs text-slate-700" onclick="editLivre(${l.ID_Livre})">تعديل</button><button class="rounded-xl bg-rose-500/90 px-3 py-1.5 text-xs text-white" onclick="deleteLivre(${l.ID_Livre})">حذف</button></div></td></tr>`).join('')}
-    </tbody></table>`
-    : '<p class="py-8 text-center text-slate-400">لا يوجد كتب — انقر على « إضافة كتاب »</p>';
+  allLivres = await api('/livres');
+  populateCategoryFilter();
+  livresCurrentPage = 1;
+  renderLivresTable();
+}
+
+function populateCategoryFilter() {
+  const filter = document.getElementById('livres-category-filter');
+  if (!filter) return;
+  
+  const categories = [...new Set(allLivres.map(l => l.Categorie).filter(Boolean))].sort();
+  const previousSelection = livresSelectedCategory;
+  
+  let html = '<option value="">كل الفئات</option>';
+  categories.forEach(cat => {
+    html += `<option value="${esc(cat)}" ${cat === previousSelection ? 'selected' : ''}>${esc(cat)}</option>`;
+  });
+  
+  filter.innerHTML = html;
+  
+  if (categories.includes(previousSelection)) {
+    livresSelectedCategory = previousSelection;
+  } else {
+    livresSelectedCategory = '';
+    filter.value = '';
+  }
+}
+
+function filterLivresByCategory(category) {
+  livresSelectedCategory = category;
+  livresCurrentPage = 1;
+  renderLivresTable();
+}
+
+function renderLivresTable() {
+  const container = document.getElementById('livres-table');
+  if (!allLivres.length) {
+    container.innerHTML = '<p class="py-8 text-center text-slate-400">لا يوجد كتب — انقر على « إضافة كتاب »</p>';
+    return;
+  }
+
+  const filteredLivres = livresSelectedCategory
+    ? allLivres.filter(l => l.Categorie === livresSelectedCategory)
+    : allLivres;
+
+  const totalPages = Math.ceil(filteredLivres.length / LIVRES_PER_PAGE);
+  if (livresCurrentPage > totalPages) livresCurrentPage = totalPages;
+  if (livresCurrentPage < 1) livresCurrentPage = 1;
+
+  const start = (livresCurrentPage - 1) * LIVRES_PER_PAGE;
+  const end = start + LIVRES_PER_PAGE;
+  const pageLivres = filteredLivres.slice(start, end);
+
+  let html = `<table class="min-w-full text-sm text-slate-600"><thead><tr class="text-right text-slate-500">
+      <th class="px-3 py-2">العنوان</th><th class="px-3 py-2">الفئة</th><th class="px-3 py-2">المؤلف</th><th class="px-3 py-2">ISBN</th><th class="px-3 py-2">السنة</th><th class="px-3 py-2">المخزون</th><th class="px-3 py-2">المتاح</th><th class="px-3 py-2">الإنشاء / التحديث</th><th class="px-3 py-2"></th>
+    </tr></thead><tbody>
+    ${pageLivres.map((l) => `<tr class="border-t border-orange-100">
+      <td class="px-3 py-2"><strong class="text-slate-900">${l.Titre}</strong>${l.Editeur ? `<br><span class="text-slate-500">${l.Editeur}</span>` : ''}</td>
+      <td class="px-3 py-2"><span class="rounded-xl bg-orange-100 px-2.5 py-1 text-xs font-medium text-orange-800">${l.Categorie ? esc(l.Categorie) : '—'}</span></td>
+      <td class="px-3 py-2">${l.Auteur}</td>
+      <td class="px-3 py-2">${l.ISBN}</td>
+      <td class="px-3 py-2">${l.Annee_Publication || '—'}</td>
+      <td class="px-3 py-2">${l.Quantite_Totale}</td>
+      <td class="px-3 py-2">${l.Quantite_Disponible}</td>
+      <td class="px-3 py-2"><div class="text-xs text-slate-500">إنشاء: ${fmtDate(l.Date_Creation)}</div><div class="text-xs text-slate-400">تحديث: ${fmtDate(l.Date_Modification)}</div></td>
+      <td class="px-3 py-2"><div class="flex justify-end gap-2"><button class="rounded-xl border border-orange-200 bg-orange-50 px-3 py-1.5 text-xs text-slate-700" onclick="editLivre(${l.ID_Livre})">تعديل</button><button class="rounded-xl bg-rose-500/90 px-3 py-1.5 text-xs text-white" onclick="deleteLivre(${l.ID_Livre})">حذف</button></div></td>
+    </tr>`).join('')}
+  </tbody></table>`;
+
+  if (totalPages > 1) {
+    let paginationButtons = '';
+    let lastAdded = 0;
+    for (let i = 1; i <= totalPages; i++) {
+      if (i === 1 || i === totalPages || (i >= livresCurrentPage - 2 && i <= livresCurrentPage + 2)) {
+        if (lastAdded && i - lastAdded > 1) {
+          paginationButtons += `<span class="px-1 text-slate-400">...</span>`;
+        }
+        paginationButtons += `<button class="rounded-xl border ${i === livresCurrentPage ? 'border-orange-500 bg-orange-500 text-white font-semibold' : 'border-orange-200 bg-white text-slate-700 hover:bg-orange-50'} px-3 py-1.5 text-xs transition" onclick="changeLivresPage(${i})">${i}</button>`;
+        lastAdded = i;
+      }
+    }
+
+    html += `
+    <div class="mt-4 flex items-center justify-between border-t border-orange-100 pt-4">
+      <div class="flex gap-2">
+        <button class="rounded-xl border border-orange-200 bg-white px-3 py-1.5 text-xs text-slate-700 disabled:opacity-50 transition hover:bg-orange-50" ${livresCurrentPage === 1 ? 'disabled' : ''} onclick="changeLivresPage(${livresCurrentPage - 1})">السابق</button>
+        ${paginationButtons}
+        <button class="rounded-xl border border-orange-200 bg-white px-3 py-1.5 text-xs text-slate-700 disabled:opacity-50 transition hover:bg-orange-50" ${livresCurrentPage === totalPages ? 'disabled' : ''} onclick="changeLivresPage(${livresCurrentPage + 1})">التالي</button>
+      </div>
+      <span class="text-xs text-slate-500">الصفحة ${livresCurrentPage} من ${totalPages} (إجمالي الكتب في هذه الفئة: ${filteredLivres.length})</span>
+    </div>`;
+  }
+
+  container.innerHTML = html;
+}
+
+function changeLivresPage(page) {
+  livresCurrentPage = page;
+  renderLivresTable();
 }
 
 async function loadAdherents() {
@@ -221,6 +317,17 @@ function openAddModal() {
       <div class="form-group"><label>المؤلف *</label><input name="auteur" required></div>
       <div class="form-group"><label>الناشر</label><input name="editeur"></div>
       <div class="form-group"><label>سنة النشر</label><input name="annee_publication" type="number" min="1000" max="2050"></div>
+      <div class="form-group"><label>الفئة</label>
+        <input name="categorie" list="categories-list" placeholder="اختر أو اكتب فئة...">
+        <datalist id="categories-list">
+          <option value="رواية">
+          <option value="تاريخ">
+          <option value="علوم">
+          <option value="أطفال">
+          <option value="شعر">
+          <option value="فلسفة">
+        </datalist>
+      </div>
       <div class="form-group"><label>الكمية الإجمالية *</label><input name="quantite_totale" type="number" min="1" value="1" required></div>`);
   } else if (currentView === 'adherents') {
     openModal('إضافة عضو', `
@@ -266,6 +373,17 @@ async function editLivre(id) {
     <div class="form-group"><label>المؤلف *</label><input name="auteur" value="${esc(l.Auteur)}" required></div>
     <div class="form-group"><label>الناشر</label><input name="editeur" value="${esc(l.Editeur || '')}"></div>
     <div class="form-group"><label>السنة</label><input name="annee_publication" type="number" value="${l.Annee_Publication || ''}"></div>
+    <div class="form-group"><label>الفئة</label>
+      <input name="categorie" list="categories-list" value="${esc(l.Categorie || '')}" placeholder="اختر أو اكتب فئة...">
+      <datalist id="categories-list">
+        <option value="رواية">
+        <option value="تاريخ">
+        <option value="علوم">
+        <option value="أطفال">
+        <option value="شعر">
+        <option value="فلسفة">
+      </datalist>
+    </div>
     <div class="form-group"><label>الكمية الإجمالية *</label><input name="quantite_totale" type="number" min="1" value="${l.Quantite_Totale}" required></div>`);
 }
 
@@ -379,6 +497,8 @@ window.editAdherent = editAdherent;
 window.deleteLivre = deleteLivre;
 window.deleteAdherent = deleteAdherent;
 window.retourEmprunt = retourEmprunt;
+window.changeLivresPage = changeLivresPage;
+window.filterLivresByCategory = filterLivresByCategory;
 
 async function checkHealth() {
   const el = document.getElementById('db-status');

@@ -8,9 +8,9 @@ router.get('/', async (_req, res) => {
     const pool = await getPool();
     const result = await pool.request().query(`
       SELECT ID_Livre, Titre, ISBN, Auteur, Editeur, Annee_Publication,
-             Quantite_Totale, Quantite_Disponible, Date_Creation, Date_Modification
+             Quantite_Totale, Quantite_Disponible, Date_Creation, Date_Modification, Categorie
       FROM Livres
-      ORDER BY Titre
+      ORDER BY Categorie, Titre
     `);
     res.json(result.recordset);
   } catch (err) {
@@ -36,7 +36,7 @@ router.get('/:id', async (req, res) => {
 });
 
 router.post('/', async (req, res) => {
-  const { titre, isbn, auteur, editeur, annee_publication, quantite_totale } = req.body;
+  const { titre, isbn, auteur, editeur, annee_publication, quantite_totale, categorie } = req.body;
 
   if (!titre || !isbn || !auteur || !quantite_totale) {
     return res.status(400).json({ error: 'Titre, ISBN, auteur et quantité totale sont obligatoires' });
@@ -52,10 +52,11 @@ router.post('/', async (req, res) => {
       .input('Editeur', sql.NVarChar(100), editeur || null)
       .input('Annee', sql.Int, annee_publication || null)
       .input('Quantite', sql.Int, quantite_totale)
+      .input('Categorie', sql.NVarChar(100), categorie || null)
       .query(`
-        INSERT INTO Livres (Titre, ISBN, Auteur, Editeur, Annee_Publication, Quantite_Totale, Quantite_Disponible)
+        INSERT INTO Livres (Titre, ISBN, Auteur, Editeur, Annee_Publication, Quantite_Totale, Quantite_Disponible, Categorie)
         OUTPUT INSERTED.*
-        VALUES (@Titre, @ISBN, @Auteur, @Editeur, @Annee, @Quantite, @Quantite)
+        VALUES (@Titre, @ISBN, @Auteur, @Editeur, @Annee, @Quantite, @Quantite, @Categorie)
       `);
 
     res.status(201).json(result.recordset[0]);
@@ -65,7 +66,7 @@ router.post('/', async (req, res) => {
 });
 
 router.put('/:id', async (req, res) => {
-  const { titre, isbn, auteur, editeur, annee_publication, quantite_totale } = req.body;
+  const { titre, isbn, auteur, editeur, annee_publication, quantite_totale, categorie } = req.body;
 
   try {
     const pool = await getPool();
@@ -100,11 +101,12 @@ router.put('/:id', async (req, res) => {
       .input('Annee', sql.Int, annee_publication || null)
       .input('QuantiteTotale', sql.Int, newTotal)
       .input('QuantiteDispo', sql.Int, newDispo)
+      .input('Categorie', sql.NVarChar(100), categorie || null)
       .query(`
         UPDATE Livres
         SET Titre = @Titre, ISBN = @ISBN, Auteur = @Auteur, Editeur = @Editeur,
             Annee_Publication = @Annee, Quantite_Totale = @QuantiteTotale,
-            Quantite_Disponible = @QuantiteDispo, Date_Modification = GETDATE()
+            Quantite_Disponible = @QuantiteDispo, Categorie = @Categorie, Date_Modification = GETDATE()
         OUTPUT INSERTED.*
         WHERE ID_Livre = @id
       `);

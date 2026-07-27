@@ -23,6 +23,7 @@ CREATE TABLE Livres (
     Annee_Publication INT CHECK (Annee_Publication BETWEEN 1000 AND 2050), -- Correction : Borne fixe au lieu d'une fonction dynamique interdite
     Quantite_Totale INT NOT NULL CHECK (Quantite_Totale > 0),
     Quantite_Disponible INT NOT NULL CHECK (Quantite_Disponible >= 0),
+    Categorie NVARCHAR(100),
     Date_Creation DATETIME DEFAULT GETDATE(),
     Date_Modification DATETIME DEFAULT GETDATE()
 );

@@ -40,8 +40,6 @@
           <button id="btn-add" class="hidden rounded-2xl bg-orange-500 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-orange-500/20 transition hover:bg-orange-400">+ إضافة</button>
         </header>
 
-        <div id="toast" class="hidden"></div>
-
         <section id="view-dashboard" class="view active space-y-6">
           <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-3" id="stats-grid"></div>
           <div class="rounded-3xl border border-orange-200 bg-white/90 p-4 shadow-lg shadow-orange-100/80 backdrop-blur">
@@ -50,7 +48,13 @@
           </div>
         </section>
 
-        <section id="view-livres" class="view">
+        <section id="view-livres" class="view space-y-4">
+          <div class="flex items-center gap-3 rounded-3xl border border-orange-200 bg-white/90 p-4 shadow-lg shadow-orange-100/80 backdrop-blur">
+            <label class="text-sm font-medium text-slate-700">تصفية حسب الفئة:</label>
+            <select id="livres-category-filter" class="rounded-xl border border-orange-200 bg-orange-50 px-3 py-1.5 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-orange-500" onchange="filterLivresByCategory(this.value)">
+              <option value="">كل الفئات</option>
+            </select>
+          </div>
           <div class="overflow-x-auto rounded-3xl border border-orange-200 bg-white/90 p-4 shadow-lg shadow-orange-100/80 backdrop-blur" id="livres-table"></div>
         </section>
 

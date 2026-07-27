@@ -2,11 +2,11 @@ require('dotenv').config();
 const { getPool, sql } = require('../config/db');
 
 const livres = [
-  { titre: 'Le Petit Prince', isbn: '978-2070612758', auteur: 'Antoine de Saint-Exupéry', editeur: 'Gallimard', annee: 1943, qte: 5 },
-  { titre: '1984', isbn: '978-2070368228', auteur: 'George Orwell', editeur: 'Gallimard', annee: 1949, qte: 3 },
-  { titre: 'Les Misérables', isbn: '978-2253082586', auteur: 'Victor Hugo', editeur: 'Le Livre de Poche', annee: 1862, qte: 4 },
-  { titre: 'L\'Étranger', isbn: '978-2070360024', auteur: 'Albert Camus', editeur: 'Gallimard', annee: 1942, qte: 3 },
-  { titre: 'Harry Potter à l\'école des sorciers', isbn: '978-2070584628', auteur: 'J.K. Rowling', editeur: 'Gallimard Jeunesse', annee: 1997, qte: 6 },
+  { titre: 'Le Petit Prince', isbn: '978-2070612758', auteur: 'Antoine de Saint-Exupéry', editeur: 'Gallimard', annee: 1943, qte: 5, categorie: 'رواية' },
+  { titre: '1984', isbn: '978-2070368228', auteur: 'George Orwell', editeur: 'Gallimard', annee: 1949, qte: 3, categorie: 'رواية' },
+  { titre: 'Les Misérables', isbn: '978-2253082586', auteur: 'Victor Hugo', editeur: 'Le Livre de Poche', annee: 1862, qte: 4, categorie: 'رواية' },
+  { titre: 'L\'Étranger', isbn: '978-2070360024', auteur: 'Albert Camus', editeur: 'Gallimard', annee: 1942, qte: 3, categorie: 'فلسفة' },
+  { titre: 'Harry Potter à l\'école des sorciers', isbn: '978-2070584628', auteur: 'J.K. Rowling', editeur: 'Gallimard Jeunesse', annee: 1997, qte: 6, categorie: 'أطفال' },
 ];
 
 const adherents = [
@@ -29,11 +29,12 @@ async function seed() {
       .input('Titre', sql.NVarChar(150), l.titre)
       .input('ISBN', sql.VarChar(20), l.isbn)
       .input('Auteur', sql.NVarChar(100), l.auteur)
-      .input('Editeur', sql.NVarChar(100), l.editeur)
-      .input('Annee', sql.Int, l.annee)
+      .input('Editeur', sql.NVarChar(100), l.editeur || null)
+      .input('Annee', sql.Int, l.annee || null)
       .input('Qte', sql.Int, l.qte)
-      .query(`INSERT INTO Livres (Titre, ISBN, Auteur, Editeur, Annee_Publication, Quantite_Totale, Quantite_Disponible)
-              VALUES (@Titre, @ISBN, @Auteur, @Editeur, @Annee, @Qte, @Qte)`);
+      .input('Categorie', sql.NVarChar(100), l.categorie || null)
+      .query(`INSERT INTO Livres (Titre, ISBN, Auteur, Editeur, Annee_Publication, Quantite_Totale, Quantite_Disponible, Categorie)
+              VALUES (@Titre, @ISBN, @Auteur, @Editeur, @Annee, @Qte, @Qte, @Categorie)`);
   }
 
   for (const a of adherents) {
