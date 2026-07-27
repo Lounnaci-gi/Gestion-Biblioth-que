@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Gestion Bibliothèque</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700&family=Literata:opsz,wght@7..72,600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="app">
+    <aside class="sidebar">
+      <div class="brand">
+        <span class="brand-icon">📚</span>
+        <div>
+          <h1>Bibliothèque</h1>
+          <p>GestionBibliotheque</p>
+        </div>
+      </div>
+      <nav>
+        <button class="nav-btn active" data-view="dashboard">Tableau de bord</button>
+        <button class="nav-btn" data-view="livres">Livres</button>
+        <button class="nav-btn" data-view="adherents">Adhérents</button>
+        <button class="nav-btn" data-view="emprunts">Emprunts</button>
+      </nav>
+      <div class="sidebar-footer">
+        <span id="db-status" class="status-dot">Connexion…</span>
+      </div>
+    </aside>
+
+    <main class="content">
+      <header class="page-header">
+        <h2 id="page-title">Tableau de bord</h2>
+        <button id="btn-add" class="btn btn-primary hidden">+ Ajouter</button>
+      </header>
+
+      <div id="toast" class="toast hidden"></div>
+
+      <!-- Dashboard -->
+      <section id="view-dashboard" class="view active">
+        <div class="stats-grid" id="stats-grid"></div>
+        <div class="panel">
+          <h3>Emprunts récents</h3>
+          <div id="recent-emprunts" class="table-wrap"></div>
+        </div>
+      </section>
+
+      <!-- Livres -->
+      <section id="view-livres" class="view">
+        <div class="table-wrap" id="livres-table"></div>
+      </section>
+
+      <!-- Adhérents -->
+      <section id="view-adherents" class="view">
+        <div class="table-wrap" id="adherents-table"></div>
+      </section>
+
+      <!-- Emprunts -->
+      <section id="view-emprunts" class="view">
+        <div class="table-wrap" id="emprunts-table"></div>
+      </section>
+    </main>
+  </div>
+
+  <!-- Modal -->
+  <div id="modal-overlay" class="modal-overlay hidden">
+    <div class="modal" role="dialog">
+      <div class="modal-header">
+        <h3 id="modal-title">Formulaire</h3>
+        <button class="btn-icon" id="modal-close" aria-label="Fermer">×</button>
+      </div>
+      <form id="modal-form" class="modal-body"></form>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-ghost" id="modal-cancel">Annuler</button>
+        <button type="submit" form="modal-form" class="btn btn-primary" id="modal-submit">Enregistrer</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
