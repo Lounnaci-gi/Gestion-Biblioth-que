@@ -8,6 +8,8 @@ const LIVRES_PER_PAGE = 20;
 let allLivres = [];
 let livresSelectedCategory = '';
 let allEmplacements = [];
+let allAdherents = [];
+let adherentsSelectedStatus = '';
 
 const titles = {
   dashboard: 'لوحة التحكم',
@@ -480,26 +482,148 @@ function changeLivresPage(page) {
 }
 
 async function loadAdherents() {
-  const adherents = await api('/adherents');
+  allAdherents = await api('/adherents');
+  const filter = document.getElementById('adherents-status-filter');
+  if (filter) filter.value = adherentsSelectedStatus;
+  renderAdherentsTable();
+}
+
+function filterAdherentsByStatus(status) {
+  adherentsSelectedStatus = status;
+  renderAdherentsTable();
+}
+
+function getFilteredAdherents() {
+  return adherentsSelectedStatus
+    ? allAdherents.filter((a) => a.Statut === adherentsSelectedStatus)
+    : allAdherents;
+}
+
+async function printAdherentsList() {
+  const filteredAdherents = getFilteredAdherents();
+  if (!filteredAdherents.length) {
+    toast('لا يوجد أعضاء للطباعة', 'error');
+    return;
+  }
+
+  let settings = {};
+  try {
+    settings = await api('/settings');
+  } catch (_) {
+    /* ignore */
+  }
+
+  const filterLabel = adherentsSelectedStatus || 'كل الحالات';
+  const printedAt = fmtDate(new Date());
+  const rows = filteredAdherents
+    .map(
+      (a, i) => `<tr>
+      <td>${i + 1}</td>
+      <td>${esc(a.Prenom || '')} ${esc(a.Nom || '')}</td>
+      <td>${esc(a.Numero_Carte || '—')}</td>
+      <td>${esc(a.Email || '—')}</td>
+      <td>${esc(a.Telephone || '—')}</td>
+      <td>${esc(a.Specialite || '—')}</td>
+      <td>${esc(a.Classe_Section || '—')}</td>
+      <td>${fmtDate(a.Date_Adhesion)}</td>
+      <td>${esc(statusLabel(a.Statut))}</td>
+    </tr>`
+    )
+    .join('');
+
+  const html = `<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <title>قائمة الأعضاء — ${esc(filterLabel)}</title>
+  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap" rel="stylesheet">
+  <style>
+    * { box-sizing: border-box; }
+    body { font-family: 'Cairo', sans-serif; color: #0f172a; margin: 24px; direction: rtl; }
+    h1 { margin: 0 0 4px; font-size: 22px; }
+    .meta { color: #64748b; font-size: 13px; margin-bottom: 18px; }
+    .meta strong { color: #334155; }
+    table { width: 100%; border-collapse: collapse; font-size: 12px; }
+    th, td { border: 1px solid #cbd5e1; padding: 6px 8px; text-align: right; vertical-align: top; }
+    th { background: #fff7ed; font-weight: 700; }
+    tr:nth-child(even) td { background: #f8fafc; }
+    .footer { margin-top: 16px; font-size: 12px; color: #64748b; }
+    @media print {
+      body { margin: 12px; }
+      @page { size: A4 landscape; margin: 12mm; }
+    }
+  </style>
+</head>
+<body>
+  <h1>قائمة الأعضاء</h1>
+  <div class="meta">
+    <div><strong>المؤسسة:</strong> ${esc(settings.etablissement || '—')}</div>
+    <div><strong>الحالة:</strong> ${esc(filterLabel)} · <strong>عدد الأعضاء:</strong> ${filteredAdherents.length} · <strong>تاريخ الطباعة:</strong> ${printedAt}</div>
+  </div>
+  <table>
+    <thead>
+      <tr>
+        <th>#</th>
+        <th>العضو</th>
+        <th>رقم البطاقة</th>
+        <th>البريد الإلكتروني</th>
+        <th>الهاتف</th>
+        <th>التخصص</th>
+        <th>القسم</th>
+        <th>تاريخ الانضمام</th>
+        <th>الحالة</th>
+      </tr>
+    </thead>
+    <tbody>${rows}</tbody>
+  </table>
+  <div class="footer">قائمة ${adherentsSelectedStatus ? 'مصفّاة' : 'كاملة'} — ${filteredAdherents.length} عضو</div>
+  <script>
+    window.onload = function () {
+      window.print();
+    };
+  <\/script>
+</body>
+</html>`;
+
+  const win = window.open('', '_blank', 'width=1100,height=800');
+  if (!win) {
+    toast('يرجى السماح بالنوافذ المنبثقة للطباعة', 'error');
+    return;
+  }
+  win.document.open();
+  win.document.write(html);
+  win.document.close();
+  win.focus();
+}
+
+function renderAdherentsTable() {
   const container = document.getElementById('adherents-table');
-  container.innerHTML = adherents.length
-    ? `<table class="min-w-full wide-table text-sm text-slate-600"><thead><tr class="text-right text-slate-500">
-        <th class="px-3 py-2">الصورة</th><th class="px-3 py-2">عضو</th><th class="px-3 py-2">البريد الإلكتروني</th><th class="px-3 py-2">الهاتف</th><th class="px-3 py-2">العنوان</th><th class="px-3 py-2">التخصص</th><th class="px-3 py-2">القسم</th><th class="px-3 py-2">تاريخ الانضمام</th><th class="px-3 py-2">الحالة</th><th class="px-3 py-2">آخر تحديث</th><th class="px-3 py-2"></th>
+  const adherents = getFilteredAdherents();
+
+  if (!allAdherents.length) {
+    container.innerHTML = '<p class="py-8 text-center text-slate-400">لا يوجد أعضاء — انقر على « إضافة عضو »</p>';
+    return;
+  }
+
+  if (!adherents.length) {
+    container.innerHTML = '<p class="py-8 text-center text-slate-400">لا يوجد أعضاء بهذه الحالة</p>';
+    hideAdherentHoverCard();
+    return;
+  }
+
+  container.innerHTML = `<table class="min-w-full wide-table text-sm text-slate-600"><thead><tr class="text-right text-slate-500">
+        <th class="px-2 py-2">الصورة</th><th class="px-2 py-2">عضو</th><th class="px-2 py-2">البريد</th><th class="px-2 py-2">الهاتف</th><th class="px-2 py-2">العنوان</th><th class="px-2 py-2">التخصص</th><th class="px-2 py-2">القسم</th><th class="px-2 py-2">الانضمام</th><th class="px-2 py-2">الحالة</th><th class="px-2 py-2">التحديث</th><th class="px-2 py-2"></th>
       </tr></thead><tbody>
       ${adherents.map((a) => {
         const photoHtml = a.Has_Photo
           ? `<img src="${API}/adherents/${a.ID_Adherent}/photo" alt="${a.Prenom} ${a.Nom}" class="adherent-photo-cell"/>`
           : `<span class="adherent-photo-cell empty-avatar">صورة</span>`;
-        return `<tr class="border-t border-orange-100" data-adherent-id="${a.ID_Adherent}"><td class="px-3 py-2">${photoHtml}</td><td class="px-3 py-2"><div class="inline-flex items-center gap-3"><div><strong class="text-slate-900">${a.Prenom} ${a.Nom}</strong><div class="text-xs text-slate-500">${a.Numero_Carte || '—'}</div></div></div></td><td class="px-3 py-2">${a.Email}</td><td class="px-3 py-2">${a.Telephone || '—'}</td><td class="px-3 py-2">${a.Adresse || '—'}</td><td class="px-3 py-2">${a.Specialite || '—'}</td><td class="px-3 py-2">${a.Classe_Section || '—'}</td><td class="px-3 py-2">${fmtDate(a.Date_Adhesion)}</td><td class="px-3 py-2">${badge(a.Statut)}</td><td class="px-3 py-2 text-xs text-slate-500">${fmtDate(a.Date_Modification)}</td><td class="px-3 py-2"><div class="flex justify-end gap-2"><button class="rounded-xl border border-sky-200 bg-sky-50 px-3 py-1.5 text-xs text-slate-700" onclick="printAdherent(${a.ID_Adherent})">طباعة البطاقة</button><button class="rounded-xl border border-orange-200 bg-orange-50 px-3 py-1.5 text-xs text-slate-700" onclick="editAdherent(${a.ID_Adherent})">تعديل</button><button class="rounded-xl bg-rose-500/90 px-3 py-1.5 text-xs text-white" onclick="deleteAdherent(${a.ID_Adherent})">حذف</button></div></td></tr>`;
+        return `<tr class="border-t border-orange-100" data-adherent-id="${a.ID_Adherent}"><td class="px-2 py-2">${photoHtml}</td><td class="px-2 py-2"><div class="inline-flex items-center gap-3"><div><strong class="text-slate-900">${a.Prenom} ${a.Nom}</strong><div class="text-xs text-slate-500">${a.Numero_Carte || '—'}</div></div></div></td><td class="px-2 py-2">${a.Email}</td><td class="px-2 py-2">${a.Telephone || '—'}</td><td class="px-2 py-2">${a.Adresse || '—'}</td><td class="px-2 py-2">${a.Specialite || '—'}</td><td class="px-2 py-2">${a.Classe_Section || '—'}</td><td class="px-2 py-2">${fmtDate(a.Date_Adhesion)}</td><td class="px-2 py-2">${badge(a.Statut)}</td><td class="px-2 py-2 text-xs text-slate-500">${fmtDate(a.Date_Modification)}</td><td class="px-2 py-2"><div class="flex justify-end gap-1.5 flex-wrap"><button class="rounded-xl border border-sky-200 bg-sky-50 px-2.5 py-1.5 text-xs text-slate-700" onclick="printAdherent(${a.ID_Adherent})">طباعة البطاقة</button><button class="rounded-xl border border-orange-200 bg-orange-50 px-2.5 py-1.5 text-xs text-slate-700" onclick="editAdherent(${a.ID_Adherent})">تعديل</button><button class="rounded-xl bg-rose-500/90 px-2.5 py-1.5 text-xs text-white" onclick="deleteAdherent(${a.ID_Adherent})">حذف</button></div></td></tr>`;
       }).join('')}
-    </tbody></table>`
-    : '<p class="py-8 text-center text-slate-400">لا يوجد أعضاء — انقر على « إضافة عضو »</p>';
+    </tbody></table>`;
 
   const card = ensureAdherentHoverCard(container);
-  if (!adherents.length) {
-    card.classList.add('hidden');
-    return;
-  }
+  card.classList.add('hidden');
 
   container.querySelectorAll('tbody tr').forEach((row, index) => {
     const adherent = adherents[index];
@@ -813,6 +937,9 @@ window.deleteAdherent = deleteAdherent;
 window.retourEmprunt = retourEmprunt;
 window.changeLivresPage = changeLivresPage;
 window.filterLivresByCategory = filterLivresByCategory;
+window.filterAdherentsByStatus = filterAdherentsByStatus;
+window.printLivresList = printLivresList;
+window.printAdherentsList = printAdherentsList;
 window.printAdherent = printAdherent;
 
 async function blobToDataUrl(blob) {

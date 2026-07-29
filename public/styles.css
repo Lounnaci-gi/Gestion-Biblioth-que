@@ -118,6 +118,23 @@ body {
   padding-right: 1rem;
 }
 
+#adherents-table .wide-table {
+  min-width: 980px;
+}
+
+#adherents-table .wide-table th,
+#adherents-table .wide-table td {
+  white-space: normal;
+  vertical-align: middle;
+  padding-left: 0.65rem;
+  padding-right: 0.65rem;
+}
+
+#adherents-table .wide-table th:nth-child(5),
+#adherents-table .wide-table td:nth-child(5) {
+  max-width: 140px;
+}
+
 #livres-table .wide-table {
   min-width: 1400px;
   table-layout: auto;
