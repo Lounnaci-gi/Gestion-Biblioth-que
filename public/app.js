@@ -113,6 +113,75 @@ function badge(statut) {
   return `<span class="badge badge-${cls}">${statusLabel(statut)}</span>`;
 }
 
+function escapeHtml(value) {
+  return String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function ensureAdherentHoverCard(container) {
+  let card = document.getElementById('adherent-hover-card');
+  if (!card) {
+    card = document.createElement('div');
+    card.id = 'adherent-hover-card';
+    card.className = 'adherent-hover-card hidden';
+    const mountPoint = container.parentElement || document.body;
+    mountPoint.appendChild(card);
+  }
+  return card;
+}
+
+function renderAdherentHoverCard(adherent) {
+  const photoHtml = adherent.Has_Photo
+    ? `<img src="${API}/adherents/${adherent.ID_Adherent}/photo" alt="${escapeHtml(adherent.Prenom)} ${escapeHtml(adherent.Nom)}" class="hover-card-photo"/>`
+    : `<div class="hover-card-photo empty-avatar">صورة</div>`;
+  return `
+    <div class="flex items-start gap-3">
+      ${photoHtml}
+      <div class="min-w-0">
+        <div class="font-semibold text-slate-900">${escapeHtml(adherent.Prenom)} ${escapeHtml(adherent.Nom)}</div>
+        <div class="mt-1 text-xs text-slate-500">${escapeHtml(adherent.Numero_Carte || '—')}</div>
+      </div>
+    </div>
+    <div class="mt-3 space-y-2 text-sm text-slate-600">
+      <div><span class="font-semibold text-slate-700">البريد:</span> ${escapeHtml(adherent.Email || '—')}</div>
+      <div><span class="font-semibold text-slate-700">الهاتف:</span> ${escapeHtml(adherent.Telephone || '—')}</div>
+      <div><span class="font-semibold text-slate-700">العنوان:</span> ${escapeHtml(adherent.Adresse || '—')}</div>
+      <div><span class="font-semibold text-slate-700">التخصص:</span> ${escapeHtml(adherent.Specialite || '—')}</div>
+      <div><span class="font-semibold text-slate-700">القسم:</span> ${escapeHtml(adherent.Classe_Section || '—')}</div>
+      <div><span class="font-semibold text-slate-700">الحالة:</span> ${badge(adherent.Statut)}</div>
+      <div><span class="font-semibold text-slate-700">تاريخ الانضمام:</span> ${fmtDate(adherent.Date_Adhesion)}</div>
+    </div>`;
+}
+
+function showAdherentHoverCard(event, adherent) {
+  const container = document.getElementById('adherents-table');
+  if (!container) return;
+  const card = ensureAdherentHoverCard(container);
+  card.innerHTML = renderAdherentHoverCard(adherent);
+  card.classList.remove('hidden');
+  updateAdherentHoverCardPosition(event);
+}
+
+function updateAdherentHoverCardPosition(event) {
+  const card = document.getElementById('adherent-hover-card');
+  if (!card || card.classList.contains('hidden')) return;
+  const offsetX = 18;
+  const offsetY = 12;
+  const left = Math.min(window.innerWidth - card.offsetWidth - 16, event.clientX + offsetX);
+  const top = Math.min(window.innerHeight - card.offsetHeight - 16, event.clientY + offsetY);
+  card.style.left = `${Math.max(16, left)}px`;
+  card.style.top = `${Math.max(16, top)}px`;
+}
+
+function hideAdherentHoverCard() {
+  const card = document.getElementById('adherent-hover-card');
+  if (card) card.classList.add('hidden');
+}
+
 function switchView(view) {
   currentView = view;
   document.querySelectorAll('.nav-btn').forEach((b) => b.classList.toggle('active', b.dataset.view === view));
@@ -265,7 +334,8 @@ function changeLivresPage(page) {
 
 async function loadAdherents() {
   const adherents = await api('/adherents');
-  document.getElementById('adherents-table').innerHTML = adherents.length
+  const container = document.getElementById('adherents-table');
+  container.innerHTML = adherents.length
     ? `<table class="min-w-full wide-table text-sm text-slate-600"><thead><tr class="text-right text-slate-500">
         <th class="px-3 py-2">الصورة</th><th class="px-3 py-2">عضو</th><th class="px-3 py-2">البريد الإلكتروني</th><th class="px-3 py-2">الهاتف</th><th class="px-3 py-2">العنوان</th><th class="px-3 py-2">التخصص</th><th class="px-3 py-2">القسم</th><th class="px-3 py-2">تاريخ الانضمام</th><th class="px-3 py-2">الحالة</th><th class="px-3 py-2">آخر تحديث</th><th class="px-3 py-2"></th>
       </tr></thead><tbody>
@@ -273,10 +343,23 @@ async function loadAdherents() {
         const photoHtml = a.Has_Photo
           ? `<img src="${API}/adherents/${a.ID_Adherent}/photo" alt="${a.Prenom} ${a.Nom}" class="adherent-photo-cell"/>`
           : `<span class="adherent-photo-cell empty-avatar">صورة</span>`;
-        return `<tr class="border-t border-orange-100"><td class="px-3 py-2">${photoHtml}</td><td class="px-3 py-2"><div class="inline-flex items-center gap-3"><div><strong class="text-slate-900">${a.Prenom} ${a.Nom}</strong><div class="text-xs text-slate-500">${a.Numero_Carte || '—'}</div></div></div></td><td class="px-3 py-2">${a.Email}</td><td class="px-3 py-2">${a.Telephone || '—'}</td><td class="px-3 py-2">${a.Adresse || '—'}</td><td class="px-3 py-2">${a.Specialite || '—'}</td><td class="px-3 py-2">${a.Classe_Section || '—'}</td><td class="px-3 py-2">${fmtDate(a.Date_Adhesion)}</td><td class="px-3 py-2">${badge(a.Statut)}</td><td class="px-3 py-2 text-xs text-slate-500">${fmtDate(a.Date_Modification)}</td><td class="px-3 py-2"><div class="flex justify-end gap-2"><button class="rounded-xl border border-sky-200 bg-sky-50 px-3 py-1.5 text-xs text-slate-700" onclick="printAdherent(${a.ID_Adherent})">طباعة البطاقة</button><button class="rounded-xl border border-orange-200 bg-orange-50 px-3 py-1.5 text-xs text-slate-700" onclick="editAdherent(${a.ID_Adherent})">تعديل</button><button class="rounded-xl bg-rose-500/90 px-3 py-1.5 text-xs text-white" onclick="deleteAdherent(${a.ID_Adherent})">حذف</button></div></td></tr>`;
+        return `<tr class="border-t border-orange-100" data-adherent-id="${a.ID_Adherent}"><td class="px-3 py-2">${photoHtml}</td><td class="px-3 py-2"><div class="inline-flex items-center gap-3"><div><strong class="text-slate-900">${a.Prenom} ${a.Nom}</strong><div class="text-xs text-slate-500">${a.Numero_Carte || '—'}</div></div></div></td><td class="px-3 py-2">${a.Email}</td><td class="px-3 py-2">${a.Telephone || '—'}</td><td class="px-3 py-2">${a.Adresse || '—'}</td><td class="px-3 py-2">${a.Specialite || '—'}</td><td class="px-3 py-2">${a.Classe_Section || '—'}</td><td class="px-3 py-2">${fmtDate(a.Date_Adhesion)}</td><td class="px-3 py-2">${badge(a.Statut)}</td><td class="px-3 py-2 text-xs text-slate-500">${fmtDate(a.Date_Modification)}</td><td class="px-3 py-2"><div class="flex justify-end gap-2"><button class="rounded-xl border border-sky-200 bg-sky-50 px-3 py-1.5 text-xs text-slate-700" onclick="printAdherent(${a.ID_Adherent})">طباعة البطاقة</button><button class="rounded-xl border border-orange-200 bg-orange-50 px-3 py-1.5 text-xs text-slate-700" onclick="editAdherent(${a.ID_Adherent})">تعديل</button><button class="rounded-xl bg-rose-500/90 px-3 py-1.5 text-xs text-white" onclick="deleteAdherent(${a.ID_Adherent})">حذف</button></div></td></tr>`;
       }).join('')}
     </tbody></table>`
     : '<p class="py-8 text-center text-slate-400">لا يوجد أعضاء — انقر على « إضافة عضو »</p>';
+
+  const card = ensureAdherentHoverCard(container);
+  if (!adherents.length) {
+    card.classList.add('hidden');
+    return;
+  }
+
+  container.querySelectorAll('tbody tr').forEach((row, index) => {
+    const adherent = adherents[index];
+    row.addEventListener('mouseenter', (event) => showAdherentHoverCard(event, adherent));
+    row.addEventListener('mousemove', updateAdherentHoverCardPosition);
+    row.addEventListener('mouseleave', hideAdherentHoverCard);
+  });
 }
 
 async function loadEmprunts() {
