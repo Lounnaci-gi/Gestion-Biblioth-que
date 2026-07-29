@@ -122,16 +122,20 @@ function escapeHtml(value) {
     .replace(/'/g, '&#39;');
 }
 
-function ensureAdherentHoverCard(container) {
-  let card = document.getElementById('adherent-hover-card');
+function ensureHoverCard(container, id) {
+  let card = document.getElementById(id);
   if (!card) {
     card = document.createElement('div');
-    card.id = 'adherent-hover-card';
+    card.id = id;
     card.className = 'adherent-hover-card hidden';
     const mountPoint = container.parentElement || document.body;
     mountPoint.appendChild(card);
   }
   return card;
+}
+
+function ensureAdherentHoverCard(container) {
+  return ensureHoverCard(container, 'adherent-hover-card');
 }
 
 function renderAdherentHoverCard(adherent) {
@@ -163,11 +167,35 @@ function showAdherentHoverCard(event, adherent) {
   const card = ensureAdherentHoverCard(container);
   card.innerHTML = renderAdherentHoverCard(adherent);
   card.classList.remove('hidden');
-  updateAdherentHoverCardPosition(event);
+  updateHoverCardPosition(event, 'adherent-hover-card');
 }
 
-function updateAdherentHoverCardPosition(event) {
-  const card = document.getElementById('adherent-hover-card');
+function renderLivreHoverCard(livre) {
+  return `
+    <div class="space-y-2 text-sm text-slate-600">
+      <div class="font-semibold text-slate-900">${escapeHtml(livre.Titre)}</div>
+      ${livre.Editeur ? `<div class="text-xs text-slate-500">${escapeHtml(livre.Editeur)}</div>` : ''}
+      <div><span class="font-semibold text-slate-700">الفئة:</span> ${escapeHtml(livre.Categorie || '—')}</div>
+      <div><span class="font-semibold text-slate-700">المؤلف:</span> ${escapeHtml(livre.Auteur || '—')}</div>
+      <div><span class="font-semibold text-slate-700">ISBN:</span> ${escapeHtml(livre.ISBN || '—')}</div>
+      <div><span class="font-semibold text-slate-700">السنة:</span> ${escapeHtml(livre.Annee_Publication || '—')}</div>
+      <div><span class="font-semibold text-slate-700">المخزون:</span> ${escapeHtml(livre.Quantite_Totale ?? '—')}</div>
+      <div><span class="font-semibold text-slate-700">المتاح:</span> ${escapeHtml(livre.Quantite_Disponible ?? '—')}</div>
+      <div><span class="font-semibold text-slate-700">تاريخ التحديث:</span> ${fmtDate(livre.Date_Modification)}</div>
+    </div>`;
+}
+
+function showLivreHoverCard(event, livre) {
+  const container = document.getElementById('livres-table');
+  if (!container) return;
+  const card = ensureHoverCard(container, 'livre-hover-card');
+  card.innerHTML = renderLivreHoverCard(livre);
+  card.classList.remove('hidden');
+  updateHoverCardPosition(event, 'livre-hover-card');
+}
+
+function updateHoverCardPosition(event, cardId) {
+  const card = document.getElementById(cardId);
   if (!card || card.classList.contains('hidden')) return;
   const offsetX = 18;
   const offsetY = 12;
@@ -177,9 +205,13 @@ function updateAdherentHoverCardPosition(event) {
   card.style.top = `${Math.max(16, top)}px`;
 }
 
-function hideAdherentHoverCard() {
-  const card = document.getElementById('adherent-hover-card');
+function hideHoverCard(cardId) {
+  const card = document.getElementById(cardId);
   if (card) card.classList.add('hidden');
+}
+
+function hideAdherentHoverCard() {
+  hideHoverCard('adherent-hover-card');
 }
 
 function switchView(view) {
@@ -325,6 +357,20 @@ function renderLivresTable() {
   }
 
   container.innerHTML = html;
+
+  if (!pageLivres.length) return;
+  const card = ensureHoverCard(container, 'livre-hover-card');
+  if (!pageLivres.length) {
+    card.classList.add('hidden');
+    return;
+  }
+
+  container.querySelectorAll('tbody tr').forEach((row, index) => {
+    const livre = pageLivres[index];
+    row.addEventListener('mouseenter', (event) => showLivreHoverCard(event, livre));
+    row.addEventListener('mousemove', (event) => updateHoverCardPosition(event, 'livre-hover-card'));
+    row.addEventListener('mouseleave', () => hideHoverCard('livre-hover-card'));
+  });
 }
 
 function changeLivresPage(page) {
@@ -357,7 +403,7 @@ async function loadAdherents() {
   container.querySelectorAll('tbody tr').forEach((row, index) => {
     const adherent = adherents[index];
     row.addEventListener('mouseenter', (event) => showAdherentHoverCard(event, adherent));
-    row.addEventListener('mousemove', updateAdherentHoverCardPosition);
+    row.addEventListener('mousemove', (event) => updateHoverCardPosition(event, 'adherent-hover-card'));
     row.addEventListener('mouseleave', hideAdherentHoverCard);
   });
 }
