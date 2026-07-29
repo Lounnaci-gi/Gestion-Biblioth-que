@@ -130,10 +130,15 @@ body {
   box-shadow: 0 22px 50px rgba(15, 23, 42, 0.22);
   backdrop-filter: blur(10px);
   pointer-events: none;
+  opacity: 1;
+  transform: translateY(0) scale(1);
+  transition: opacity 180ms ease, transform 180ms ease;
 }
 
 .adherent-hover-card.hidden {
   display: none !important;
+  opacity: 0;
+  transform: translateY(6px) scale(0.98);
 }
 
 .hover-card-photo {
