@@ -7,6 +7,7 @@ let livresCurrentPage = 1;
 const LIVRES_PER_PAGE = 20;
 let allLivres = [];
 let livresSelectedCategory = '';
+let allEmplacements = [];
 
 const titles = {
   dashboard: 'لوحة التحكم',
@@ -62,18 +63,36 @@ function toast(msg, type = 'success') {
 
 function fmtDate(d) {
   if (!d) return '—';
-  return new Date(d).toLocaleDateString('ar-EG', { day: '2-digit', month: 'short', year: 'numeric' });
+  const date = new Date(d);
+  const day = String(date.getDate()).padStart(2, '0');
+  const monthNames = [
+    'جانفي',
+    'فيفري',
+    'مارس',
+    'أفريل',
+    'ماي',
+    'جوان',
+    'جويلية',
+    'أوت',
+    'سبتمبر',
+    'أكتوبر',
+    'نوفمبر',
+    'ديسمبر',
+  ];
+  const month = monthNames[date.getMonth()];
+  const year = date.getFullYear();
+  return `${day} ${month} ${year}`;
 }
 
 function statusLabel(statut) {
   const map = {
     Actif: 'نشط',
     Inactif: 'غير نشط',
-    Suspendu: 'معلق',
-    'En cours': 'قيد الإجراء',
+    Suspendu: 'موقوف',
+    'En cours': 'قيد الإعارة',
     Retard: 'متأخر',
-    Rendu: 'مُعاد',
-    Rendue: 'مُعاد',
+    Rendu: 'معاد',
+    Rendue: 'معاد',
   };
   return map[statut] || statut || '—';
 }
@@ -82,9 +101,9 @@ function statusClass(statut) {
   const value = String(statut || '').toLowerCase();
   if (value.includes('actif') || value.includes('نشط')) return 'actif';
   if (value.includes('inactif') || value.includes('غير نشط')) return 'inactif';
-  if (value.includes('suspendu') || value.includes('معلق')) return 'suspendu';
+  if (value.includes('suspendu') || value.includes('موقوف')) return 'suspendu';
   if (value.includes('retard') || value.includes('متأخر')) return 'retard';
-  if (value.includes('rendu') || value.includes('مُعاد')) return 'rendu';
+  if (value.includes('معاد') || value.includes('rendu')) return 'rendu';
   if (value.includes('cours') || value.includes('قيد')) return 'en-cours';
   return '';
 }
@@ -248,9 +267,14 @@ async function loadAdherents() {
   const adherents = await api('/adherents');
   document.getElementById('adherents-table').innerHTML = adherents.length
     ? `<table class="min-w-full text-sm text-slate-600"><thead><tr class="text-right text-slate-500">
-        <th class="px-3 py-2">الاسم</th><th class="px-3 py-2">البريد الإلكتروني</th><th class="px-3 py-2">الهاتف</th><th class="px-3 py-2">تاريخ الانضمام</th><th class="px-3 py-2">الحالة</th><th class="px-3 py-2">آخر تحديث</th><th class="px-3 py-2"></th>
+        <th class="px-3 py-2">عضو</th><th class="px-3 py-2">البريد الإلكتروني</th><th class="px-3 py-2">الهاتف</th><th class="px-3 py-2">العنوان</th><th class="px-3 py-2">التخصص</th><th class="px-3 py-2">القسم</th><th class="px-3 py-2">تاريخ الانضمام</th><th class="px-3 py-2">الحالة</th><th class="px-3 py-2">آخر تحديث</th><th class="px-3 py-2"></th>
       </tr></thead><tbody>
-      ${adherents.map((a) => `<tr class="border-t border-orange-100"><td class="px-3 py-2"><strong class="text-slate-900">${a.Prenom} ${a.Nom}</strong></td><td class="px-3 py-2">${a.Email}</td><td class="px-3 py-2">${a.Telephone || '—'}</td><td class="px-3 py-2">${fmtDate(a.Date_Adhesion)}</td><td class="px-3 py-2">${badge(a.Statut)}</td><td class="px-3 py-2 text-xs text-slate-500">${fmtDate(a.Date_Modification)}</td><td class="px-3 py-2"><div class="flex justify-end gap-2"><button class="rounded-xl border border-orange-200 bg-orange-50 px-3 py-1.5 text-xs text-slate-700" onclick="editAdherent(${a.ID_Adherent})">تعديل</button><button class="rounded-xl bg-rose-500/90 px-3 py-1.5 text-xs text-white" onclick="deleteAdherent(${a.ID_Adherent})">حذف</button></div></td></tr>`).join('')}
+      ${adherents.map((a) => {
+        const photoHtml = a.Photo_B64
+          ? `<img src="${a.Photo_B64}" alt="${a.Prenom} ${a.Nom}" class="adherent-avatar"/>`
+          : `<span class="adherent-avatar empty-avatar">صورة</span>`;
+        return `<tr class="border-t border-orange-100"><td class="px-3 py-2"><div class="inline-flex items-center gap-3"><span>${photoHtml}</span><div><strong class="text-slate-900">${a.Prenom} ${a.Nom}</strong><div class="text-xs text-slate-500">${a.Numero_Carte || '—'}</div></div></div></td><td class="px-3 py-2">${a.Email}</td><td class="px-3 py-2">${a.Telephone || '—'}</td><td class="px-3 py-2">${a.Adresse || '—'}</td><td class="px-3 py-2">${a.Specialite || '—'}</td><td class="px-3 py-2">${a.Classe_Section || '—'}</td><td class="px-3 py-2">${fmtDate(a.Date_Adhesion)}</td><td class="px-3 py-2">${badge(a.Statut)}</td><td class="px-3 py-2 text-xs text-slate-500">${fmtDate(a.Date_Modification)}</td><td class="px-3 py-2"><div class="flex justify-end gap-2"><button class="rounded-xl border border-sky-200 bg-sky-50 px-3 py-1.5 text-xs text-slate-700" onclick="printAdherent(${a.ID_Adherent})">طباعة البطاقة</button><button class="rounded-xl border border-orange-200 bg-orange-50 px-3 py-1.5 text-xs text-slate-700" onclick="editAdherent(${a.ID_Adherent})">تعديل</button><button class="rounded-xl bg-rose-500/90 px-3 py-1.5 text-xs text-white" onclick="deleteAdherent(${a.ID_Adherent})">حذف</button></div></td></tr>`;
+      }).join('')}
     </tbody></table>`
     : '<p class="py-8 text-center text-slate-400">لا يوجد أعضاء — انقر على « إضافة عضو »</p>';
 }
@@ -261,7 +285,7 @@ async function loadEmprunts() {
     ? `<table class="min-w-full text-sm text-slate-600"><thead><tr class="text-right text-slate-500">
         <th class="px-3 py-2">الكتاب</th><th class="px-3 py-2">العضو</th><th class="px-3 py-2">الاستعارة</th><th class="px-3 py-2">العودة المتوقعة</th><th class="px-3 py-2">العودة الفعلية</th><th class="px-3 py-2">الحالة</th><th class="px-3 py-2"></th>
       </tr></thead><tbody>
-      ${emprunts.map((e) => `<tr class="border-t border-orange-100"><td class="px-3 py-2"><strong class="text-slate-900">${e.Livre}</strong><br><span class="text-slate-500">${e.ISBN}</span></td><td class="px-3 py-2">${e.AdherentPrenom} ${e.AdherentNom}</td><td class="px-3 py-2">${fmtDate(e.Date_Emprunt)}</td><td class="px-3 py-2">${fmtDate(e.Date_Retour_Prévue)}</td><td class="px-3 py-2">${fmtDate(e.Date_Retour_Reelle)}</td><td class="px-3 py-2">${badge(e.Statut)}</td><td class="px-3 py-2">${e.Statut === 'En cours' || e.Statut === 'Retard'
+      ${emprunts.map((e) => `<tr class="border-t border-orange-100"><td class="px-3 py-2"><strong class="text-slate-900">${e.Livre}</strong><br><span class="text-slate-500">${e.ISBN}</span></td><td class="px-3 py-2">${e.AdherentPrenom} ${e.AdherentNom}</td><td class="px-3 py-2">${fmtDate(e.Date_Emprunt)}</td><td class="px-3 py-2">${fmtDate(e.Date_Retour_Prévue)}</td><td class="px-3 py-2">${fmtDate(e.Date_Retour_Reelle)}</td><td class="px-3 py-2">${badge(e.Statut)}</td><td class="px-3 py-2">${e.Statut === 'قيد الإعارة' || e.Statut === 'متأخر'
           ? `<button class="rounded-xl bg-amber-500/90 px-3 py-1.5 text-xs text-white" onclick="retourEmprunt(${e.ID_Emprunt})">تسجيل العودة</button>`
           : ''}</td></tr>`).join('')}
     </tbody></table>`
@@ -298,6 +322,7 @@ async function saveSettings() {
 function openModal(title, html) {
   document.getElementById('modal-title').textContent = title;
   document.getElementById('modal-form').innerHTML = html;
+  bindPhotoPreview();
   document.getElementById('modal-overlay').classList.remove('hidden');
   document.getElementById('modal-overlay').classList.add('flex');
 }
@@ -306,6 +331,28 @@ function closeModal() {
   document.getElementById('modal-overlay').classList.add('hidden');
   document.getElementById('modal-overlay').classList.remove('flex');
   editId = null;
+}
+
+function bindPhotoPreview() {
+  const fileInput = document.querySelector('#modal-form input[name="photo_file"]');
+  const preview = document.querySelector('#modal-form #photo-preview');
+  if (!fileInput || !preview) return;
+
+  fileInput.addEventListener('change', () => {
+    const file = fileInput.files[0];
+    if (!file) {
+      preview.src = '';
+      preview.classList.add('hidden');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      preview.src = reader.result;
+      preview.classList.remove('hidden');
+    };
+    reader.readAsDataURL(file);
+  });
 }
 
 function openAddModal() {
@@ -317,7 +364,12 @@ function openAddModal() {
       <div class="form-group"><label>المؤلف *</label><input name="auteur" required></div>
       <div class="form-group"><label>الناشر</label><input name="editeur"></div>
       <div class="form-group"><label>سنة النشر</label><input name="annee_publication" type="number" min="1000" max="2050"></div>
-      <div class="form-group"><label>الفئة</label>
+      <div class="form-group"><label>الموقع (اختياري)</label>
+        <select name="id_emplacement">
+          <option value="">اختر موقعًا...</option>
+          ${allEmplacements.map(e => `<option value="${e.ID_Emplacement}">${esc(e.Nom_Categorie || '—')} — طابق ${e.Etage} صف ${esc(e.Rang)}</option>`).join('')}
+        </select>
+        <div style="margin-top:6px;font-size:0.85rem;color:var(--muted)">أو أدخل اسم الفئة لإنشاء موقع جديد:</div>
         <input name="categorie" list="categories-list" placeholder="اختر أو اكتب فئة...">
         <datalist id="categories-list">
           <option value="رواية">
@@ -335,8 +387,13 @@ function openAddModal() {
       <div class="form-group"><label>الاسم *</label><input name="nom" required></div>
       <div class="form-group"><label>البريد الإلكتروني *</label><input name="email" type="email" required></div>
       <div class="form-group"><label>الهاتف</label><input name="telephone"></div>
+      <div class="form-group"><label>صورة العضو</label><input name="photo_file" type="file" accept="image/*"><img id="photo-preview" class="photo-preview hidden" alt="معاينة الصورة"></div>
+      <div class="form-group"><label>العنوان</label><input name="adresse"></div>
+      <div class="form-group"><label>التخصص</label><input name="specialite"></div>
+      <div class="form-group"><label>القسم/الصف</label><input name="classe_section"></div>
+      <div class="form-group"><label>تاريخ الانضمام</label><input name="date_adhesion" type="date"></div>
       <div class="form-group"><label>الحالة</label>
-        <select name="statut"><option value="Actif">نشط</option><option value="Inactif">غير نشط</option><option value="Suspendu">معلق</option></select>
+        <select name="statut"><option value="نشط">نشط</option><option value="غير نشط">غير نشط</option><option value="موقوف">موقوف</option></select>
       </div>`);
   } else if (currentView === 'emprunts') {
     openEmpruntModal();
@@ -373,7 +430,12 @@ async function editLivre(id) {
     <div class="form-group"><label>المؤلف *</label><input name="auteur" value="${esc(l.Auteur)}" required></div>
     <div class="form-group"><label>الناشر</label><input name="editeur" value="${esc(l.Editeur || '')}"></div>
     <div class="form-group"><label>السنة</label><input name="annee_publication" type="number" value="${l.Annee_Publication || ''}"></div>
-    <div class="form-group"><label>الفئة</label>
+    <div class="form-group"><label>الموقع (اختياري)</label>
+      <select name="id_emplacement">
+        <option value="">اختر موقعًا...</option>
+        ${allEmplacements.map(e => `<option value="${e.ID_Emplacement}" ${l.ID_Emplacement===e.ID_Emplacement ? 'selected' : ''}>${esc(e.Nom_Categorie || '—')} — طابق ${e.Etage} صف ${esc(e.Rang)}</option>`).join('')}
+      </select>
+      <div style="margin-top:6px;font-size:0.85rem;color:var(--muted)">أو أدخل اسم الفئة لإنشاء موقع جديد:</div>
       <input name="categorie" list="categories-list" value="${esc(l.Categorie || '')}" placeholder="اختر أو اكتب فئة...">
       <datalist id="categories-list">
         <option value="رواية">
@@ -389,15 +451,20 @@ async function editLivre(id) {
 
 async function editAdherent(id) {
   editId = id;
-  const a = await api(`/adherents`).then((list) => list.find((x) => x.ID_Adherent === id));
+  const a = await api(`/adherents/${id}`);
   openModal('تعديل العضو', `
     <div class="form-group"><label>الاسم الأول *</label><input name="prenom" value="${esc(a.Prenom)}" required></div>
     <div class="form-group"><label>الاسم *</label><input name="nom" value="${esc(a.Nom)}" required></div>
     <div class="form-group"><label>البريد الإلكتروني *</label><input name="email" type="email" value="${esc(a.Email)}" required></div>
     <div class="form-group"><label>الهاتف</label><input name="telephone" value="${esc(a.Telephone || '')}"></div>
+    <div class="form-group"><label>صورة العضو</label><input name="photo_file" type="file" accept="image/*"><img id="photo-preview" class="photo-preview ${a.Photo_B64 ? '' : 'hidden'}" src="${a.Photo_B64 || ''}" alt="معاينة الصورة"></div>
+    <div class="form-group"><label>العنوان</label><input name="adresse" value="${esc(a.Adresse || '')}"></div>
+    <div class="form-group"><label>التخصص</label><input name="specialite" value="${esc(a.Specialite || '')}"></div>
+    <div class="form-group"><label>القسم/الصف</label><input name="classe_section" value="${esc(a.Classe_Section || '')}"></div>
+    <div class="form-group"><label>تاريخ الانضمام</label><input name="date_adhesion" type="date" value="${a.Date_Adhesion ? new Date(a.Date_Adhesion).toISOString().slice(0,10) : ''}"></div>
     <div class="form-group"><label>الحالة</label>
       <select name="statut">
-        ${['Actif','Inactif','Suspendu'].map((s) => `<option value="${s}" ${a.Statut===s?'selected':''}>${s}</option>`).join('')}
+        ${['نشط','غير نشط','موقوف'].map((s) => `<option value="${s}" ${a.Statut===s?'selected':''}>${s}</option>`).join('')}
       </select>
     </div>`);
 }
@@ -409,7 +476,23 @@ function esc(s) {
 async function handleFormSubmit(e) {
   e.preventDefault();
   const fd = new FormData(e.target);
-  const body = Object.fromEntries(fd.entries());
+  const fileField = e.target.querySelector('input[name="photo_file"]');
+  if (fileField) {
+    const file = fileField.files && fileField.files[0];
+    if (file) {
+      const b64 = await new Promise((resolve, reject) => {
+        const r = new FileReader();
+        r.onload = () => resolve(r.result);
+        r.onerror = () => reject(new Error('Impossible de lire le fichier image'));
+        r.readAsDataURL(file);
+      });
+      fd.set('Photo_B64', b64);
+    } else {
+      fd.delete('Photo_B64');
+    }
+  }
+
+  const body = Object.fromEntries([...fd.entries()].filter(([k]) => k !== 'photo_file' && !(k === 'Photo_B64' && !fd.get('Photo_B64'))));
 
   if (body.annee_publication) body.annee_publication = parseInt(body.annee_publication, 10);
   if (body.quantite_totale) body.quantite_totale = parseInt(body.quantite_totale, 10);
@@ -499,6 +582,65 @@ window.deleteAdherent = deleteAdherent;
 window.retourEmprunt = retourEmprunt;
 window.changeLivresPage = changeLivresPage;
 window.filterLivresByCategory = filterLivresByCategory;
+window.printAdherent = printAdherent;
+
+function printAdherent(id) {
+  api(`/adherents/${id}`).then((adh) => {
+    if (!adh) return toast('Adhérent introuvable', 'error');
+
+    const photoHtml = adh.Photo_B64
+      ? `<img src="${adh.Photo_B64}" alt="Photo adhérent" class="photo-print"/>`
+      : `<div class="photo-print empty">صورة</div>`;
+
+    const qrHtml = adh.QRCode_B64
+      ? `<img src="${adh.QRCode_B64}" alt="QR Code" class="qr-print"/>`
+      : (adh.Code_QR ? `<img src="https://chart.googleapis.com/chart?cht=qr&chs=150x150&chl=${encodeURIComponent(adh.Code_QR)}" alt="QR Code" class="qr-print"/>` : '');
+
+    const html = `
+      <div class="print-card">
+        <div class="print-card__header">
+          <div>
+            <div class="print-card__title">بطاقة العضو</div>
+            <div class="print-card__subtitle">${esc(adh.Prenom)} ${esc(adh.Nom)}</div>
+          </div>
+          ${qrHtml}
+        </div>
+        <div class="print-card__body">
+          <div class="print-card__photo">${photoHtml}</div>
+          <div class="print-card__info">
+            <div class="print-card__row"><span class="label">رقم البطاقة</span><span>${esc(adh.Numero_Carte || '—')}</span></div>
+            <div class="print-card__row"><span class="label">القسم</span><span>${esc(adh.Classe_Section || '—')}</span></div>
+            <div class="print-card__row"><span class="label">التخصص</span><span>${esc(adh.Specialite || '—')}</span></div>
+            <div class="print-card__row"><span class="label">الهاتف</span><span>${esc(adh.Telephone || '—')}</span></div>
+            <div class="print-card__row"><span class="label">البريد</span><span>${esc(adh.Email || '—')}</span></div>
+            <div class="print-card__row"><span class="label">تاريخ الانضمام</span><span>${fmtDate(adh.Date_Adhesion)}</span></div>
+          </div>
+        </div>
+      </div>`;
+
+    const template = `<!doctype html><html lang="ar" dir="rtl"><head><meta charset="utf-8"><title>بطاقة العضو</title><style>
+      body{margin:0;padding:16px;font-family:Arial,Helvetica,sans-serif;background:#f8fafc;color:#111827;}
+      .print-card{width:360px;background:#fff;border:1px solid #e2e8f0;border-radius:18px;box-shadow:0 16px 40px rgba(15,23,42,.08);overflow:hidden;}
+      .print-card__header{display:flex;justify-content:space-between;align-items:center;padding:18px 20px;background:#f97316;color:#fff;gap:12px;}
+      .print-card__title{font-size:1.1rem;font-weight:700;letter-spacing:.02em;}
+      .print-card__subtitle{margin-top:6px;font-size:.95rem;font-weight:600;opacity:.92;}
+      .print-card__body{display:grid;grid-template-columns:110px 1fr;gap:16px;padding:18px 20px;}
+      .print-card__photo{width:110px;height:110px;border-radius:18px;overflow:hidden;background:#f3f4f6;display:flex;align-items:center;justify-content:center;}
+      .photo-print{width:100%;height:100%;object-fit:cover;display:block;}
+      .photo-print.empty{width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:.95rem;color:#94a3b8;background:#f8fafc;}
+      .print-card__info{display:flex;flex-direction:column;gap:10px;font-size:.9rem;color:#1f2937;}
+      .print-card__row{display:flex;justify-content:space-between;gap:12px;padding:10px 12px;border-radius:14px;background:#f8fafc;}
+      .label{color:#475569;font-size:.8rem;}
+      .qr-print{width:88px;height:88px;border-radius:16px;background:#fff;object-fit:contain;}
+      @media print{body{padding:0;} .print-card{box-shadow:none;border-color:#d1d5db;}}
+    </style></head><body>${html}<script>setTimeout(()=>window.print(),150);</script></body></html>`;
+
+    const w = window.open('', '_blank', 'width=420,height=620');
+    if (!w) return toast('Impossible d’ouvrir la fenêtre d’impression', 'error');
+    w.document.write(template);
+    w.document.close();
+  }).catch(() => toast('خطأ في جلب بيانات العضو', 'error'));
+}
 
 async function checkHealth() {
   const el = document.getElementById('db-status');
@@ -515,3 +657,13 @@ async function checkHealth() {
 checkHealth();
 loadDashboard();
 loadSettings();
+// load emplacements for livre modal
+loadEmplacements();
+
+async function loadEmplacements() {
+  try {
+    allEmplacements = await api('/emplacements');
+  } catch (err) {
+    allEmplacements = [];
+  }
+}

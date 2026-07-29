@@ -68,16 +68,16 @@ router.post('/:id/retour', async (req, res) => {
       }
 
       const emprunt = empruntResult.recordset[0];
-      if (emprunt.Statut === 'Rendu') {
+      if (emprunt.Statut === 'معاد') {
         await transaction.rollback();
-        return res.status(400).json({ error: 'Ce livre a déjà été rendu' });
+        return res.status(400).json({ error: "Ce livre a déjà été rendu (معاد)" });
       }
 
       await new sql.Request(transaction)
         .input('id', sql.Int, req.params.id)
         .query(`
           UPDATE Emprunts
-          SET Statut = 'Rendu', Date_Retour_Reelle = GETDATE()
+          SET Statut = N'معاد', Date_Retour_Reelle = GETDATE()
           WHERE ID_Emprunt = @id
         `);
 

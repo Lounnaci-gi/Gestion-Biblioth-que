@@ -20,13 +20,24 @@ async function run() {
   const newAd = { nom: 'Test', prenom: 'User', email: 'test.user@example.com', telephone: '0123456789' };
   const createdAd = await req('/api/adherents', { method: 'POST', headers, body: JSON.stringify(newAd) });
   console.log('Created adherent:', createdAd);
-  if (!createdAd.ok) return;
-  const adId = createdAd.body.ID_Adherent || createdAd.body.ID || createdAd.body.id;
+  let adId;
+  if (!createdAd.ok) {
+    // Peut-être déjà présent — chercher par email
+    const list = await req('/api/adherents');
+    const found = (list.body || []).find(a => a.Email === newAd.email);
+    if (!found) {
+      console.error('Impossible de créer ou trouver l\'adhérent de test');
+      return;
+    }
+    adId = found.ID_Adherent;
+  } else {
+    adId = createdAd.body.ID_Adherent || createdAd.body.ID || createdAd.body.id;
+  }
 
   // Livres
   console.log('\n--- Livres ---');
   console.log('List:', await req('/api/livres'));
-  const newLivre = { titre: 'Test Livre', isbn: 'ISBN-TEST-001', auteur: 'Auteur Test', quantite_totale: 2 };
+  const newLivre = { titre: 'Test Livre', isbn: 'ISBN-TEST-001', auteur: 'Auteur Test', quantite_totale: 2, categorie: 'رواية' };
   const createdLivre = await req('/api/livres', { method: 'POST', headers, body: JSON.stringify(newLivre) });
   console.log('Created livre:', createdLivre);
   if (!createdLivre.ok) return;
@@ -53,7 +64,7 @@ async function run() {
 
   // Update adherent
   console.log('\n--- Update Adherent ---');
-  const updatedAd = await req(`/api/adherents/${adId}`, { method: 'PUT', headers, body: JSON.stringify({ nom: 'TestUp', prenom: 'UserUp', email: 'test.up@example.com', telephone: '000', statut: 'Actif' }) });
+  const updatedAd = await req(`/api/adherents/${adId}`, { method: 'PUT', headers, body: JSON.stringify({ nom: 'TestUp', prenom: 'UserUp', email: 'test.up@example.com', telephone: '000', statut: 'نشط' }) });
   console.log('Updated adherent:', updatedAd);
 
   // Update livre

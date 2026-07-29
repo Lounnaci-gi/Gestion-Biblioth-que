@@ -61,6 +61,38 @@ body {
   box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.16);
 }
 
+.photo-preview {
+  width: 100%;
+  max-width: 220px;
+  height: 180px;
+  margin-top: 0.5rem;
+  border-radius: 0.9rem;
+  border: 1px dashed var(--border);
+  object-fit: cover;
+}
+
+.photo-preview.hidden {
+  display: none;
+}
+
+.adherent-avatar {
+  width: 44px;
+  height: 44px;
+  border-radius: 14px;
+  object-fit: cover;
+  display: inline-block;
+  background: #f3f4f6;
+}
+
+.empty-avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #64748b;
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
 .btn-icon {
   background: none;
   border: none;
@@ -80,3 +112,20 @@ body {
 }
 #db-status.ok::before { background: #22c55e; }
 #db-status.error::before { background: #ef4444; }
+
+/* Modal: constrain height and make form scrollable so modal adapts to viewport */
+#modal-overlay > div[role="dialog"] {
+  max-height: calc(100vh - 80px);
+  display: flex;
+  flex-direction: column;
+}
+
+#modal-form {
+  overflow: auto;
+  flex: 1 1 auto;
+  padding: 16px 20px;
+}
+
+@media (max-height: 520px) {
+  #modal-overlay > div[role="dialog"] { max-height: calc(100vh - 30px); }
+}
