@@ -17,7 +17,7 @@ async function run() {
   console.log('\n--- Adherents ---');
   console.log('List:', await req('/api/adherents'));
 
-  const newAd = { nom: 'Test', prenom: 'User', email: 'test.user@example.com', telephone: '0123456789' };
+  const newAd = { nom: 'اختبار', prenom: 'مستخدم', email: `test.user.${Date.now()}@example.com`, telephone: '0123456789' };
   const createdAd = await req('/api/adherents', { method: 'POST', headers, body: JSON.stringify(newAd) });
   console.log('Created adherent:', createdAd);
   let adId;
@@ -37,7 +37,7 @@ async function run() {
   // Livres
   console.log('\n--- Livres ---');
   console.log('List:', await req('/api/livres'));
-  const newLivre = { titre: 'Test Livre', isbn: 'ISBN-TEST-001', auteur: 'Auteur Test', quantite_totale: 2, categorie: 'رواية' };
+  const newLivre = { titre: 'كتاب اختبار', isbn: `ISBN-TEST-${Date.now()}`, auteur: 'مؤلف اختبار', quantite_totale: 2, categorie: 'رواية' };
   const createdLivre = await req('/api/livres', { method: 'POST', headers, body: JSON.stringify(newLivre) });
   console.log('Created livre:', createdLivre);
   if (!createdLivre.ok) return;
@@ -64,12 +64,12 @@ async function run() {
 
   // Update adherent
   console.log('\n--- Update Adherent ---');
-  const updatedAd = await req(`/api/adherents/${adId}`, { method: 'PUT', headers, body: JSON.stringify({ nom: 'TestUp', prenom: 'UserUp', email: 'test.up@example.com', telephone: '000', statut: 'نشط' }) });
+  const updatedAd = await req(`/api/adherents/${adId}`, { method: 'PUT', headers, body: JSON.stringify({ nom: 'محدث', prenom: 'مستخدم', email: `test.up.${Date.now()}@example.com`, telephone: '000', statut: 'نشط' }) });
   console.log('Updated adherent:', updatedAd);
 
   // Update livre
   console.log('\n--- Update Livre ---');
-  const updatedLivre = await req(`/api/livres/${livreId}`, { method: 'PUT', headers, body: JSON.stringify({ titre: 'Test Livre Mod', isbn: 'ISBN-TEST-001', auteur: 'Auteur Mod', quantite_totale: 2 }) });
+  const updatedLivre = await req(`/api/livres/${livreId}`, { method: 'PUT', headers, body: JSON.stringify({ titre: 'كتاب معدل', isbn: createdLivre.body.ISBN, auteur: 'مؤلف معدل', quantite_totale: 2, categorie: 'رواية' }) });
   console.log('Updated livre:', updatedLivre);
 
   // Delete emprunt should already be returned; now delete adherent and livre

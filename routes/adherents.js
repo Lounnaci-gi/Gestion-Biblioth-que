@@ -1,34 +1,57 @@
 const express = require('express');
+const QRCode = require('qrcode');
 const { sql, getPool, handleDbError } = require('../config/db');
 
 const router = express.Router();
+
+function buildQrPayload(adherent) {
+  const lines = [
+    'بطاقة انخراط — المكتبة',
+    '────────────────────',
+    `الاسم: ${adherent.Prenom} ${adherent.Nom}`,
+    `رقم البطاقة: ${adherent.Numero_Carte || '—'}`,
+  ];
+
+  if (adherent.Email) lines.push(`البريد: ${adherent.Email}`);
+  if (adherent.Telephone) lines.push(`الهاتف: ${adherent.Telephone}`);
+  if (adherent.Classe_Section) lines.push(`القسم: ${adherent.Classe_Section}`);
+  if (adherent.Specialite) lines.push(`التخصص: ${adherent.Specialite}`);
+
+  return lines.join('\n');
+}
+
+function photoMime(buffer) {
+  if (!buffer || !Buffer.isBuffer(buffer) || buffer.length < 4) return 'image/jpeg';
+  if (buffer[0] === 0x89 && buffer[1] === 0x50) return 'image/png';
+  if (buffer[0] === 0xff && buffer[1] === 0xd8) return 'image/jpeg';
+  if (buffer[0] === 0x47 && buffer[1] === 0x49) return 'image/gif';
+  if (buffer[0] === 0x52 && buffer[1] === 0x49) return 'image/webp';
+  return 'image/jpeg';
+}
+
+function toPhotoDataUrl(buffer) {
+  if (!buffer || !Buffer.isBuffer(buffer)) return null;
+  const mime = photoMime(buffer);
+  return `data:${mime};base64,${buffer.toString('base64')}`;
+}
+
+function decodePhotoInput(photoB64) {
+  if (!photoB64 || typeof photoB64 !== 'string') return null;
+  const base64 = photoB64.includes(',') ? photoB64.split(',')[1] : photoB64;
+  return Buffer.from(base64, 'base64');
+}
 
 router.get('/', async (_req, res) => {
   try {
     const pool = await getPool();
     const result = await pool.request().query(`
-      SELECT ID_Adherent, Nom, Prenom, Adresse, Email, Telephone, Specialite, Classe_Section, Date_Adhesion, Statut, Numero_Carte, Code_QR, QRCode_Image, Photo_Image, Date_Modification
+      SELECT ID_Adherent, Nom, Prenom, Adresse, Email, Telephone, Specialite, Classe_Section,
+             Date_Adhesion, Statut, Numero_Carte, Code_QR, Date_Modification,
+             CASE WHEN Photo_Image IS NOT NULL THEN 1 ELSE 0 END AS Has_Photo
       FROM Adherents
       ORDER BY Nom, Prenom
     `);
-    // Convert VARBINARY QRCode_Image to base64 data URL for the client
-    const rows = result.recordset.map(r => {
-      const out = { ...r };
-      if (r.QRCode_Image && Buffer.isBuffer(r.QRCode_Image)) {
-        out.QRCode_B64 = 'data:image/png;base64,' + r.QRCode_Image.toString('base64');
-      } else {
-        out.QRCode_B64 = null;
-      }
-      if (r.Photo_Image && Buffer.isBuffer(r.Photo_Image)) {
-        out.Photo_B64 = 'data:image/png;base64,' + r.Photo_Image.toString('base64');
-      } else {
-        out.Photo_B64 = null;
-      }
-      delete out.QRCode_Image;
-      delete out.Photo_Image;
-      return out;
-    });
-    res.json(rows);
+    res.json(result.recordset);
   } catch (err) {
     handleDbError(res, err);
   }
@@ -49,8 +72,71 @@ router.get('/actifs', async (_req, res) => {
   }
 });
 
+router.get('/:id/qrcode', async (req, res) => {
+  try {
+    const pool = await getPool();
+    const result = await pool
+      .request()
+      .input('id', sql.Int, req.params.id)
+      .query(`
+        SELECT ID_Adherent, Nom, Prenom, Email, Telephone, Specialite, Classe_Section, Numero_Carte, QRCode_Image
+        FROM Adherents WHERE ID_Adherent = @id
+      `);
+
+    if (!result.recordset.length) {
+      return res.status(404).json({ error: 'Adhérent introuvable' });
+    }
+
+    const adherent = result.recordset[0];
+    const stored = adherent.QRCode_Image;
+
+    if (stored && Buffer.isBuffer(stored) && stored.length > 0) {
+      res.set('Content-Type', photoMime(stored));
+      res.set('Cache-Control', 'private, max-age=3600');
+      return res.send(stored);
+    }
+
+    const png = await QRCode.toBuffer(buildQrPayload(adherent), {
+      type: 'png',
+      width: 180,
+      margin: 1,
+      errorCorrectionLevel: 'M',
+    });
+
+    res.set('Content-Type', 'image/png');
+    res.set('Cache-Control', 'private, max-age=3600');
+    res.send(png);
+  } catch (err) {
+    handleDbError(res, err);
+  }
+});
+
+router.get('/:id/photo', async (req, res) => {
+  try {
+    const pool = await getPool();
+    const result = await pool
+      .request()
+      .input('id', sql.Int, req.params.id)
+      .query('SELECT Photo_Image FROM Adherents WHERE ID_Adherent = @id');
+
+    if (!result.recordset.length) {
+      return res.status(404).json({ error: 'Adhérent introuvable' });
+    }
+
+    const photo = result.recordset[0].Photo_Image;
+    if (!photo || !Buffer.isBuffer(photo)) {
+      return res.status(404).json({ error: 'Aucune photo disponible' });
+    }
+
+    res.set('Content-Type', photoMime(photo));
+    res.set('Cache-Control', 'private, max-age=3600');
+    res.send(photo);
+  } catch (err) {
+    handleDbError(res, err);
+  }
+});
+
 router.get('/:id', async (req, res) => {
-  console.log('[ROUTE] GET /api/adherents/:id ->', req.params.id);
   try {
     const pool = await getPool();
     const result = await pool
@@ -65,8 +151,9 @@ router.get('/:id', async (req, res) => {
 
     const r = result.recordset[0];
     const out = { ...r };
-    out.QRCode_B64 = r.QRCode_Image && Buffer.isBuffer(r.QRCode_Image) ? 'data:image/png;base64,' + r.QRCode_Image.toString('base64') : null;
-    out.Photo_B64 = r.Photo_Image && Buffer.isBuffer(r.Photo_Image) ? 'data:image/png;base64,' + r.Photo_Image.toString('base64') : null;
+    out.QRCode_B64 = toPhotoDataUrl(r.QRCode_Image);
+    out.Photo_B64 = toPhotoDataUrl(r.Photo_Image);
+    out.Has_Photo = Boolean(r.Photo_Image);
     delete out.QRCode_Image;
     delete out.Photo_Image;
 
@@ -96,7 +183,7 @@ router.post('/', async (req, res) => {
       .input('Specialite', sql.NVarChar(100), specialite || null)
       .input('Classe', sql.NVarChar(50), classe_section || null)
       .input('DateAdhesion', sql.Date, date_adhesion ? new Date(date_adhesion) : null)
-      .input('Photo', sql.VarBinary(sql.MAX), Photo_B64 ? Buffer.from(Photo_B64.split(',')[1], 'base64') : null)
+      .input('Photo', sql.VarBinary(sql.MAX), decodePhotoInput(Photo_B64))
       .query(`
         INSERT INTO Adherents (Nom, Prenom, Email, Telephone, Statut, Adresse, Specialite, Classe_Section, Date_Adhesion, Photo_Image)
         OUTPUT INSERTED.*
@@ -126,7 +213,7 @@ router.put('/:id', async (req, res) => {
       .input('Specialite', sql.NVarChar(100), specialite || null)
       .input('Classe', sql.NVarChar(50), classe_section || null)
       .input('DateAdhesion', sql.Date, date_adhesion ? new Date(date_adhesion) : null)
-      .input('Photo', sql.VarBinary(sql.MAX), Photo_B64 ? Buffer.from(Photo_B64.split(',')[1], 'base64') : null)
+      .input('Photo', sql.VarBinary(sql.MAX), decodePhotoInput(Photo_B64))
       .query(`
         UPDATE Adherents
         SET Nom = @Nom, Prenom = @Prenom, Email = @Email, Telephone = @Telephone,

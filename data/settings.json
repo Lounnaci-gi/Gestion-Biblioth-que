@@ -1,9 +1,9 @@
 {
-  "etablissement": "Lycée Hassan II",
+  "etablissement": "ثانوية صديقي النوري",
   "type": "Lycée",
-  "ville": "Rabat",
-  "adresse": "Rue de test",
-  "telephone": "0600000000",
+  "ville": "البرواقية",
+  "adresse": "حي أول نوفمبر 1954 البرواقية",
+  "telephone": "025776612",
   "email": "contact@example.com",
   "site": "https://example.com"
 }

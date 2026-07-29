@@ -270,8 +270,8 @@ async function loadAdherents() {
         <th class="px-3 py-2">الصورة</th><th class="px-3 py-2">عضو</th><th class="px-3 py-2">البريد الإلكتروني</th><th class="px-3 py-2">الهاتف</th><th class="px-3 py-2">العنوان</th><th class="px-3 py-2">التخصص</th><th class="px-3 py-2">القسم</th><th class="px-3 py-2">تاريخ الانضمام</th><th class="px-3 py-2">الحالة</th><th class="px-3 py-2">آخر تحديث</th><th class="px-3 py-2"></th>
       </tr></thead><tbody>
       ${adherents.map((a) => {
-        const photoHtml = a.Photo_B64
-          ? `<img src="${a.Photo_B64}" alt="${a.Prenom} ${a.Nom}" class="adherent-photo-cell"/>`
+        const photoHtml = a.Has_Photo
+          ? `<img src="${API}/adherents/${a.ID_Adherent}/photo" alt="${a.Prenom} ${a.Nom}" class="adherent-photo-cell"/>`
           : `<span class="adherent-photo-cell empty-avatar">صورة</span>`;
         return `<tr class="border-t border-orange-100"><td class="px-3 py-2">${photoHtml}</td><td class="px-3 py-2"><div class="inline-flex items-center gap-3"><div><strong class="text-slate-900">${a.Prenom} ${a.Nom}</strong><div class="text-xs text-slate-500">${a.Numero_Carte || '—'}</div></div></div></td><td class="px-3 py-2">${a.Email}</td><td class="px-3 py-2">${a.Telephone || '—'}</td><td class="px-3 py-2">${a.Adresse || '—'}</td><td class="px-3 py-2">${a.Specialite || '—'}</td><td class="px-3 py-2">${a.Classe_Section || '—'}</td><td class="px-3 py-2">${fmtDate(a.Date_Adhesion)}</td><td class="px-3 py-2">${badge(a.Statut)}</td><td class="px-3 py-2 text-xs text-slate-500">${fmtDate(a.Date_Modification)}</td><td class="px-3 py-2"><div class="flex justify-end gap-2"><button class="rounded-xl border border-sky-200 bg-sky-50 px-3 py-1.5 text-xs text-slate-700" onclick="printAdherent(${a.ID_Adherent})">طباعة البطاقة</button><button class="rounded-xl border border-orange-200 bg-orange-50 px-3 py-1.5 text-xs text-slate-700" onclick="editAdherent(${a.ID_Adherent})">تعديل</button><button class="rounded-xl bg-rose-500/90 px-3 py-1.5 text-xs text-white" onclick="deleteAdherent(${a.ID_Adherent})">حذف</button></div></td></tr>`;
       }).join('')}
@@ -498,6 +498,7 @@ async function handleFormSubmit(e) {
   if (body.quantite_totale) body.quantite_totale = parseInt(body.quantite_totale, 10);
   if (body.id_livre) body.id_livre = parseInt(body.id_livre, 10);
   if (body.id_adherent) body.id_adherent = parseInt(body.id_adherent, 10);
+  if (body.id_emplacement) body.id_emplacement = parseInt(body.id_emplacement, 10);
 
   try {
     if (currentView === 'livres') {
@@ -584,28 +585,33 @@ window.changeLivresPage = changeLivresPage;
 window.filterLivresByCategory = filterLivresByCategory;
 window.printAdherent = printAdherent;
 
-function printAdherent(id) {
-  api(`/adherents/${id}`).then((adh) => {
+async function blobToDataUrl(blob) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = () => reject(new Error('Impossible de lire le QR code'));
+    reader.readAsDataURL(blob);
+  });
+}
+
+async function getAdherentQrSrc(adh) {
+  if (adh.QRCode_B64) return adh.QRCode_B64;
+  const res = await fetch(`${API}/adherents/${adh.ID_Adherent}/qrcode`);
+  if (!res.ok) throw new Error('Impossible de générer le QR code');
+  return blobToDataUrl(await res.blob());
+}
+
+async function printAdherent(id) {
+  try {
+    const adh = await api(`/adherents/${id}`);
     if (!adh) return toast('Adhérent introuvable', 'error');
 
     const photoHtml = adh.Photo_B64
       ? `<img src="${adh.Photo_B64}" alt="Photo adhérent" class="photo-print"/>`
       : `<div class="photo-print empty">صورة</div>`;
 
-    const qrPayload = JSON.stringify({
-      id: adh.ID_Adherent,
-      nom: adh.Nom,
-      prenom: adh.Prenom,
-      numero_carte: adh.Numero_Carte,
-      email: adh.Email,
-      telephone: adh.Telephone || '',
-      section: adh.Classe_Section || '',
-      specialite: adh.Specialite || '',
-    });
-
-    const qrHtml = adh.QRCode_B64
-      ? `<img src="${adh.QRCode_B64}" alt="QR Code" class="qr-print"/>`
-      : `<img src="https://chart.googleapis.com/chart?cht=qr&chs=180x180&chl=${encodeURIComponent(qrPayload)}" alt="QR Code" class="qr-print"/>`;
+    const qrSrc = await getAdherentQrSrc(adh);
+    const qrHtml = `<img src="${qrSrc}" alt="QR Code" class="qr-print"/>`;
 
     const html = `
       <div class="print-card">
@@ -663,7 +669,9 @@ function printAdherent(id) {
     if (!w) return toast('Impossible d’ouvrir la fenêtre d’impression', 'error');
     w.document.write(template);
     w.document.close();
-  }).catch(() => toast('خطأ في جلب بيانات العضو', 'error'));
+  } catch {
+    toast('خطأ في جلب بيانات العضو', 'error');
+  }
 }
 
 async function checkHealth() {

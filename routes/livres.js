@@ -27,7 +27,16 @@ router.get('/:id', async (req, res) => {
     const result = await pool
       .request()
       .input('id', sql.Int, req.params.id)
-      .query('SELECT * FROM Livres WHERE ID_Livre = @id');
+      .query(`
+        SELECT L.ID_Livre, L.Titre, L.ISBN, L.Auteur, L.Editeur, L.Annee_Publication,
+               L.Quantite_Totale, L.Quantite_Disponible, L.ID_Emplacement,
+               L.Date_Creation, L.Date_Modification,
+               E.Rang, E.Etage, C.Nom_Categorie AS Categorie
+        FROM Livres L
+        LEFT JOIN Emplacements E ON E.ID_Emplacement = L.ID_Emplacement
+        LEFT JOIN Categories C ON C.ID_Categorie = E.ID_Categorie
+        WHERE L.ID_Livre = @id
+      `);
 
     if (!result.recordset.length) {
       return res.status(404).json({ error: 'Livre introuvable' });
@@ -48,7 +57,7 @@ router.post('/', async (req, res) => {
   try {
     const pool = await getPool();
     // Si l'appelant a envoyé une 'categorie' textuelle, trouver/créer Category+Emplacement
-    let emplacementId = id_emplacement || null;
+    let emplacementId = id_emplacement ? parseInt(id_emplacement, 10) : null;
     if (!emplacementId && categorie) {
       const catRes = await pool.request().input('Nom', sql.NVarChar(100), categorie).query(`
         IF NOT EXISTS (SELECT 1 FROM Categories WHERE Nom_Categorie = @Nom)
@@ -67,6 +76,13 @@ router.post('/', async (req, res) => {
       `);
       emplacementId = empRes.recordset[0].ID_Emplacement;
     }
+
+    if (!emplacementId) {
+      return res.status(400).json({
+        error: 'Un emplacement ou une catégorie est obligatoire pour enregistrer un livre',
+      });
+    }
+
     const result = await pool
       .request()
       .input('Titre', sql.NVarChar(150), titre)
@@ -93,7 +109,7 @@ router.put('/:id', async (req, res) => {
 
   try {
     const pool = await getPool();
-    let emplacementId = id_emplacement || null;
+    let emplacementId = id_emplacement ? parseInt(id_emplacement, 10) : null;
     if (!emplacementId && categorie) {
       const catRes = await pool.request().input('Nom', sql.NVarChar(100), categorie).query(`
         IF NOT EXISTS (SELECT 1 FROM Categories WHERE Nom_Categorie = @Nom)
