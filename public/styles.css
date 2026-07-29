@@ -75,13 +75,44 @@ body {
   display: none;
 }
 
-.adherent-avatar {
+..adherent-avatar {
   width: 44px;
   height: 44px;
   border-radius: 14px;
   object-fit: cover;
   display: inline-block;
   background: #f3f4f6;
+}
+
+.adherent-photo-cell {
+  width: 56px;
+  height: 56px;
+  border-radius: 18px;
+  object-fit: cover;
+  display: block;
+  background: #f3f4f6;
+}
+
+.empty-avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #64748b;
+  font-size: 0.75rem;
+  font-weight: 700;
+  width: 56px;
+  height: 56px;
+  border-radius: 18px;
+  background: #f8fafc;
+}
+
+.wide-table {
+  min-width: 1200px;
+}
+
+.wide-table th,
+.wide-table td {
+  white-space: nowrap;
 }
 
 .empty-avatar {

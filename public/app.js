@@ -266,14 +266,14 @@ function changeLivresPage(page) {
 async function loadAdherents() {
   const adherents = await api('/adherents');
   document.getElementById('adherents-table').innerHTML = adherents.length
-    ? `<table class="min-w-full text-sm text-slate-600"><thead><tr class="text-right text-slate-500">
-        <th class="px-3 py-2">عضو</th><th class="px-3 py-2">البريد الإلكتروني</th><th class="px-3 py-2">الهاتف</th><th class="px-3 py-2">العنوان</th><th class="px-3 py-2">التخصص</th><th class="px-3 py-2">القسم</th><th class="px-3 py-2">تاريخ الانضمام</th><th class="px-3 py-2">الحالة</th><th class="px-3 py-2">آخر تحديث</th><th class="px-3 py-2"></th>
+    ? `<table class="min-w-full wide-table text-sm text-slate-600"><thead><tr class="text-right text-slate-500">
+        <th class="px-3 py-2">الصورة</th><th class="px-3 py-2">عضو</th><th class="px-3 py-2">البريد الإلكتروني</th><th class="px-3 py-2">الهاتف</th><th class="px-3 py-2">العنوان</th><th class="px-3 py-2">التخصص</th><th class="px-3 py-2">القسم</th><th class="px-3 py-2">تاريخ الانضمام</th><th class="px-3 py-2">الحالة</th><th class="px-3 py-2">آخر تحديث</th><th class="px-3 py-2"></th>
       </tr></thead><tbody>
       ${adherents.map((a) => {
         const photoHtml = a.Photo_B64
-          ? `<img src="${a.Photo_B64}" alt="${a.Prenom} ${a.Nom}" class="adherent-avatar"/>`
-          : `<span class="adherent-avatar empty-avatar">صورة</span>`;
-        return `<tr class="border-t border-orange-100"><td class="px-3 py-2"><div class="inline-flex items-center gap-3"><span>${photoHtml}</span><div><strong class="text-slate-900">${a.Prenom} ${a.Nom}</strong><div class="text-xs text-slate-500">${a.Numero_Carte || '—'}</div></div></div></td><td class="px-3 py-2">${a.Email}</td><td class="px-3 py-2">${a.Telephone || '—'}</td><td class="px-3 py-2">${a.Adresse || '—'}</td><td class="px-3 py-2">${a.Specialite || '—'}</td><td class="px-3 py-2">${a.Classe_Section || '—'}</td><td class="px-3 py-2">${fmtDate(a.Date_Adhesion)}</td><td class="px-3 py-2">${badge(a.Statut)}</td><td class="px-3 py-2 text-xs text-slate-500">${fmtDate(a.Date_Modification)}</td><td class="px-3 py-2"><div class="flex justify-end gap-2"><button class="rounded-xl border border-sky-200 bg-sky-50 px-3 py-1.5 text-xs text-slate-700" onclick="printAdherent(${a.ID_Adherent})">طباعة البطاقة</button><button class="rounded-xl border border-orange-200 bg-orange-50 px-3 py-1.5 text-xs text-slate-700" onclick="editAdherent(${a.ID_Adherent})">تعديل</button><button class="rounded-xl bg-rose-500/90 px-3 py-1.5 text-xs text-white" onclick="deleteAdherent(${a.ID_Adherent})">حذف</button></div></td></tr>`;
+          ? `<img src="${a.Photo_B64}" alt="${a.Prenom} ${a.Nom}" class="adherent-photo-cell"/>`
+          : `<span class="adherent-photo-cell empty-avatar">صورة</span>`;
+        return `<tr class="border-t border-orange-100"><td class="px-3 py-2">${photoHtml}</td><td class="px-3 py-2"><div class="inline-flex items-center gap-3"><div><strong class="text-slate-900">${a.Prenom} ${a.Nom}</strong><div class="text-xs text-slate-500">${a.Numero_Carte || '—'}</div></div></div></td><td class="px-3 py-2">${a.Email}</td><td class="px-3 py-2">${a.Telephone || '—'}</td><td class="px-3 py-2">${a.Adresse || '—'}</td><td class="px-3 py-2">${a.Specialite || '—'}</td><td class="px-3 py-2">${a.Classe_Section || '—'}</td><td class="px-3 py-2">${fmtDate(a.Date_Adhesion)}</td><td class="px-3 py-2">${badge(a.Statut)}</td><td class="px-3 py-2 text-xs text-slate-500">${fmtDate(a.Date_Modification)}</td><td class="px-3 py-2"><div class="flex justify-end gap-2"><button class="rounded-xl border border-sky-200 bg-sky-50 px-3 py-1.5 text-xs text-slate-700" onclick="printAdherent(${a.ID_Adherent})">طباعة البطاقة</button><button class="rounded-xl border border-orange-200 bg-orange-50 px-3 py-1.5 text-xs text-slate-700" onclick="editAdherent(${a.ID_Adherent})">تعديل</button><button class="rounded-xl bg-rose-500/90 px-3 py-1.5 text-xs text-white" onclick="deleteAdherent(${a.ID_Adherent})">حذف</button></div></td></tr>`;
       }).join('')}
     </tbody></table>`
     : '<p class="py-8 text-center text-slate-400">لا يوجد أعضاء — انقر على « إضافة عضو »</p>';
@@ -592,15 +592,26 @@ function printAdherent(id) {
       ? `<img src="${adh.Photo_B64}" alt="Photo adhérent" class="photo-print"/>`
       : `<div class="photo-print empty">صورة</div>`;
 
+    const qrPayload = JSON.stringify({
+      id: adh.ID_Adherent,
+      nom: adh.Nom,
+      prenom: adh.Prenom,
+      numero_carte: adh.Numero_Carte,
+      email: adh.Email,
+      telephone: adh.Telephone || '',
+      section: adh.Classe_Section || '',
+      specialite: adh.Specialite || '',
+    });
+
     const qrHtml = adh.QRCode_B64
       ? `<img src="${adh.QRCode_B64}" alt="QR Code" class="qr-print"/>`
-      : (adh.Code_QR ? `<img src="https://chart.googleapis.com/chart?cht=qr&chs=150x150&chl=${encodeURIComponent(adh.Code_QR)}" alt="QR Code" class="qr-print"/>` : '');
+      : `<img src="https://chart.googleapis.com/chart?cht=qr&chs=180x180&chl=${encodeURIComponent(qrPayload)}" alt="QR Code" class="qr-print"/>`;
 
     const html = `
       <div class="print-card">
         <div class="print-card__header">
           <div>
-            <div class="print-card__title">بطاقة العضو</div>
+            <div class="print-card__title">بطاقة الانخراط</div>
             <div class="print-card__subtitle">${esc(adh.Prenom)} ${esc(adh.Nom)}</div>
           </div>
           ${qrHtml}
@@ -631,9 +642,22 @@ function printAdherent(id) {
       .print-card__info{display:flex;flex-direction:column;gap:10px;font-size:.9rem;color:#1f2937;}
       .print-card__row{display:flex;justify-content:space-between;gap:12px;padding:10px 12px;border-radius:14px;background:#f8fafc;}
       .label{color:#475569;font-size:.8rem;}
-      .qr-print{width:88px;height:88px;border-radius:16px;background:#fff;object-fit:contain;}
+      .qr-print{width:88px;height:88px;border-radius:16px;background:#fff;object-fit:contain;display:block;border:1px solid rgba(15,23,42,.08);}
       @media print{body{padding:0;} .print-card{box-shadow:none;border-color:#d1d5db;}}
-    </style></head><body>${html}<script>setTimeout(()=>window.print(),150);</script></body></html>`;
+    </style></head><body>${html}<script>
+      const imgs = Array.from(document.querySelectorAll('img'));
+      let loaded = 0;
+      const tryPrint = () => { if (loaded >= imgs.length) window.print(); };
+      if (!imgs.length) return window.print();
+      imgs.forEach((img) => {
+        if (img.complete) { loaded += 1; tryPrint(); }
+        else {
+          img.onload = () => { loaded += 1; tryPrint(); };
+          img.onerror = () => { loaded += 1; tryPrint(); };
+        }
+      });
+      setTimeout(tryPrint, 800);
+    </script></body></html>`;
 
     const w = window.open('', '_blank', 'width=420,height=620');
     if (!w) return toast('Impossible d’ouvrir la fenêtre d’impression', 'error');
