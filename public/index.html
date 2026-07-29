@@ -12,8 +12,8 @@
 </head>
 <body class="min-h-screen bg-[#fff7ed] text-slate-800">
   <div class="min-h-screen bg-[radial-gradient(circle_at_top_left,_rgba(249,115,22,0.18),_transparent_30%),radial-gradient(circle_at_bottom_right,_rgba(251,191,36,0.2),_transparent_30%)]">
-    <div class="mx-auto flex min-h-screen max-w-7xl flex-col lg:flex-row">
-      <aside class="w-full border-b border-orange-200 bg-white/90 p-5 shadow-sm backdrop-blur lg:w-72 lg:border-b-0 lg:border-l lg:pr-6">
+    <div class="mx-auto flex min-h-screen w-full max-w-[100rem] flex-col lg:flex-row">
+      <aside class="w-full shrink-0 border-b border-orange-200 bg-white/90 p-5 shadow-sm backdrop-blur lg:w-64 lg:border-b-0 lg:border-l lg:pr-6">
         <div class="flex items-center gap-3 rounded-2xl border border-orange-200 bg-orange-50 p-3">
           <span class="text-3xl">📚</span>
           <div>
@@ -49,11 +49,19 @@
         </section>
 
         <section id="view-livres" class="view space-y-4">
-          <div class="flex items-center gap-3 rounded-3xl border border-orange-200 bg-white/90 p-4 shadow-lg shadow-orange-100/80 backdrop-blur">
-            <label class="text-sm font-medium text-slate-700">تصفية حسب الفئة:</label>
-            <select id="livres-category-filter" class="rounded-xl border border-orange-200 bg-orange-50 px-3 py-1.5 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-orange-500" onchange="filterLivresByCategory(this.value)">
-              <option value="">كل الفئات</option>
-            </select>
+          <div class="flex flex-wrap items-center justify-between gap-3 rounded-3xl border border-orange-200 bg-white/90 p-4 shadow-lg shadow-orange-100/80 backdrop-blur">
+            <div class="flex flex-wrap items-center gap-3">
+              <label class="text-sm font-medium text-slate-700">تصفية حسب الفئة:</label>
+              <select id="livres-category-filter" class="rounded-xl border border-orange-200 bg-orange-50 px-3 py-1.5 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-orange-500" onchange="filterLivresByCategory(this.value)">
+                <option value="">كل الفئات</option>
+              </select>
+            </div>
+            <button type="button" id="btn-print-livres" onclick="printLivresList()" class="inline-flex items-center gap-2 rounded-xl border border-orange-300 bg-white px-4 py-2 text-sm font-semibold text-orange-700 shadow-sm transition hover:bg-orange-50">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M6 9V4h12v5M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2M6 14h12v8H6v-8z" />
+              </svg>
+              طباعة القائمة
+            </button>
           </div>
           <div class="overflow-x-auto rounded-3xl border border-orange-200 bg-white/90 p-4 shadow-lg shadow-orange-100/80 backdrop-blur" id="livres-table"></div>
         </section>

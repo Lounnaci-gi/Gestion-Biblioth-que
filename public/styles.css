@@ -108,14 +108,44 @@ body {
 
 .wide-table {
   min-width: 1200px;
+  width: 100%;
 }
 
 .wide-table th,
 .wide-table td {
   white-space: nowrap;
+  padding-left: 1rem;
+  padding-right: 1rem;
 }
 
-#adherents-table {
+#livres-table .wide-table {
+  min-width: 1400px;
+  table-layout: auto;
+}
+
+#livres-table .wide-table th,
+#livres-table .wide-table td {
+  white-space: normal;
+  vertical-align: top;
+}
+
+#livres-table .wide-table th:nth-child(1),
+#livres-table .wide-table td:nth-child(1) {
+  min-width: 220px;
+}
+
+#livres-table .wide-table th:nth-child(3),
+#livres-table .wide-table td:nth-child(3) {
+  min-width: 160px;
+}
+
+#livres-table .wide-table th:nth-child(4),
+#livres-table .wide-table td:nth-child(4) {
+  min-width: 140px;
+}
+
+#adherents-table,
+#livres-table {
   position: relative;
 }
 

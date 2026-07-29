@@ -297,6 +297,109 @@ function filterLivresByCategory(category) {
   renderLivresTable();
 }
 
+function getFilteredLivres() {
+  return livresSelectedCategory
+    ? allLivres.filter((l) => l.Categorie === livresSelectedCategory)
+    : allLivres;
+}
+
+async function printLivresList() {
+  const filteredLivres = getFilteredLivres();
+  if (!filteredLivres.length) {
+    toast('لا توجد كتب للطباعة', 'error');
+    return;
+  }
+
+  let settings = {};
+  try {
+    settings = await api('/settings');
+  } catch (_) {
+    /* ignore */
+  }
+
+  const filterLabel = livresSelectedCategory || 'كل الفئات';
+  const printedAt = fmtDate(new Date());
+  const rows = filteredLivres
+    .map(
+      (l, i) => `<tr>
+      <td>${i + 1}</td>
+      <td>${esc(l.Titre || '')}</td>
+      <td>${esc(l.Auteur || '')}</td>
+      <td>${esc(l.Categorie || '—')}</td>
+      <td>${esc(l.ISBN || '—')}</td>
+      <td>${esc(l.Editeur || '—')}</td>
+      <td>${l.Annee_Publication || '—'}</td>
+      <td>${l.Quantite_Totale ?? '—'}</td>
+      <td>${l.Quantite_Disponible ?? '—'}</td>
+    </tr>`
+    )
+    .join('');
+
+  const html = `<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <title>فهرس الكتب — ${esc(filterLabel)}</title>
+  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap" rel="stylesheet">
+  <style>
+    * { box-sizing: border-box; }
+    body { font-family: 'Cairo', sans-serif; color: #0f172a; margin: 24px; direction: rtl; }
+    h1 { margin: 0 0 4px; font-size: 22px; }
+    .meta { color: #64748b; font-size: 13px; margin-bottom: 18px; }
+    .meta strong { color: #334155; }
+    table { width: 100%; border-collapse: collapse; font-size: 12px; }
+    th, td { border: 1px solid #cbd5e1; padding: 6px 8px; text-align: right; vertical-align: top; }
+    th { background: #fff7ed; font-weight: 700; }
+    tr:nth-child(even) td { background: #f8fafc; }
+    .footer { margin-top: 16px; font-size: 12px; color: #64748b; }
+    @media print {
+      body { margin: 12px; }
+      @page { size: A4 landscape; margin: 12mm; }
+    }
+  </style>
+</head>
+<body>
+  <h1>فهرس الكتب</h1>
+  <div class="meta">
+    <div><strong>المؤسسة:</strong> ${esc(settings.etablissement || '—')}</div>
+    <div><strong>الفئة:</strong> ${esc(filterLabel)} · <strong>عدد الكتب:</strong> ${filteredLivres.length} · <strong>تاريخ الطباعة:</strong> ${printedAt}</div>
+  </div>
+  <table>
+    <thead>
+      <tr>
+        <th>#</th>
+        <th>العنوان</th>
+        <th>المؤلف</th>
+        <th>الفئة</th>
+        <th>ISBN</th>
+        <th>الناشر</th>
+        <th>السنة</th>
+        <th>المخزون</th>
+        <th>المتاح</th>
+      </tr>
+    </thead>
+    <tbody>${rows}</tbody>
+  </table>
+  <div class="footer">قائمة ${livresSelectedCategory ? 'مصفّاة' : 'كاملة'} — ${filteredLivres.length} كتاب</div>
+  <script>
+    window.onload = function () {
+      window.print();
+    };
+  <\/script>
+</body>
+</html>`;
+
+  const win = window.open('', '_blank', 'width=1100,height=800');
+  if (!win) {
+    toast('يرجى السماح بالنوافذ المنبثقة للطباعة', 'error');
+    return;
+  }
+  win.document.open();
+  win.document.write(html);
+  win.document.close();
+  win.focus();
+}
+
 function renderLivresTable() {
   const container = document.getElementById('livres-table');
   if (!allLivres.length) {
@@ -304,11 +407,9 @@ function renderLivresTable() {
     return;
   }
 
-  const filteredLivres = livresSelectedCategory
-    ? allLivres.filter(l => l.Categorie === livresSelectedCategory)
-    : allLivres;
+  const filteredLivres = getFilteredLivres();
 
-  const totalPages = Math.ceil(filteredLivres.length / LIVRES_PER_PAGE);
+  const totalPages = Math.ceil(filteredLivres.length / LIVRES_PER_PAGE) || 1;
   if (livresCurrentPage > totalPages) livresCurrentPage = totalPages;
   if (livresCurrentPage < 1) livresCurrentPage = 1;
 
@@ -316,19 +417,19 @@ function renderLivresTable() {
   const end = start + LIVRES_PER_PAGE;
   const pageLivres = filteredLivres.slice(start, end);
 
-  let html = `<table class="min-w-full text-sm text-slate-600"><thead><tr class="text-right text-slate-500">
-      <th class="px-3 py-2">العنوان</th><th class="px-3 py-2">الفئة</th><th class="px-3 py-2">المؤلف</th><th class="px-3 py-2">ISBN</th><th class="px-3 py-2">السنة</th><th class="px-3 py-2">المخزون</th><th class="px-3 py-2">المتاح</th><th class="px-3 py-2">الإنشاء / التحديث</th><th class="px-3 py-2"></th>
+  let html = `<table class="min-w-full wide-table text-sm text-slate-600"><thead><tr class="text-right text-slate-500">
+      <th class="px-4 py-3">العنوان</th><th class="px-4 py-3">الفئة</th><th class="px-4 py-3">المؤلف</th><th class="px-4 py-3">ISBN</th><th class="px-4 py-3">السنة</th><th class="px-4 py-3">المخزون</th><th class="px-4 py-3">المتاح</th><th class="px-4 py-3">الإنشاء / التحديث</th><th class="px-4 py-3"></th>
     </tr></thead><tbody>
     ${pageLivres.map((l) => `<tr class="border-t border-orange-100">
-      <td class="px-3 py-2"><strong class="text-slate-900">${l.Titre}</strong>${l.Editeur ? `<br><span class="text-slate-500">${l.Editeur}</span>` : ''}</td>
-      <td class="px-3 py-2"><span class="rounded-xl bg-orange-100 px-2.5 py-1 text-xs font-medium text-orange-800">${l.Categorie ? esc(l.Categorie) : '—'}</span></td>
-      <td class="px-3 py-2">${l.Auteur}</td>
-      <td class="px-3 py-2">${l.ISBN}</td>
-      <td class="px-3 py-2">${l.Annee_Publication || '—'}</td>
-      <td class="px-3 py-2">${l.Quantite_Totale}</td>
-      <td class="px-3 py-2">${l.Quantite_Disponible}</td>
-      <td class="px-3 py-2"><div class="text-xs text-slate-500">إنشاء: ${fmtDate(l.Date_Creation)}</div><div class="text-xs text-slate-400">تحديث: ${fmtDate(l.Date_Modification)}</div></td>
-      <td class="px-3 py-2"><div class="flex justify-end gap-2"><button class="rounded-xl border border-orange-200 bg-orange-50 px-3 py-1.5 text-xs text-slate-700" onclick="editLivre(${l.ID_Livre})">تعديل</button><button class="rounded-xl bg-rose-500/90 px-3 py-1.5 text-xs text-white" onclick="deleteLivre(${l.ID_Livre})">حذف</button></div></td>
+      <td class="px-4 py-3"><strong class="text-slate-900">${l.Titre}</strong>${l.Editeur ? `<br><span class="text-slate-500">${l.Editeur}</span>` : ''}</td>
+      <td class="px-4 py-3"><span class="rounded-xl bg-orange-100 px-2.5 py-1 text-xs font-medium text-orange-800">${l.Categorie ? esc(l.Categorie) : '—'}</span></td>
+      <td class="px-4 py-3">${l.Auteur}</td>
+      <td class="px-4 py-3">${l.ISBN}</td>
+      <td class="px-4 py-3">${l.Annee_Publication || '—'}</td>
+      <td class="px-4 py-3">${l.Quantite_Totale}</td>
+      <td class="px-4 py-3">${l.Quantite_Disponible}</td>
+      <td class="px-4 py-3"><div class="text-xs text-slate-500">إنشاء: ${fmtDate(l.Date_Creation)}</div><div class="text-xs text-slate-400">تحديث: ${fmtDate(l.Date_Modification)}</div></td>
+      <td class="px-4 py-3"><div class="flex justify-end gap-2"><button class="rounded-xl border border-orange-200 bg-orange-50 px-3 py-1.5 text-xs text-slate-700" onclick="editLivre(${l.ID_Livre})">تعديل</button><button class="rounded-xl bg-rose-500/90 px-3 py-1.5 text-xs text-white" onclick="deleteLivre(${l.ID_Livre})">حذف</button></div></td>
     </tr>`).join('')}
   </tbody></table>`;
 
