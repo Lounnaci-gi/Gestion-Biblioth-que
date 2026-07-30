@@ -8,12 +8,14 @@ const LIVRES_PER_PAGE = 20;
 let allLivres = [];
 let livresSelectedCategory = '';
 let allEmplacements = [];
+let allCategories = [];
 let allAdherents = [];
 let adherentsSelectedStatus = '';
 
 const titles = {
   dashboard: 'لوحة التحكم',
   livres: 'فهرس الكتب',
+  emplacements: 'مواقع التخزين',
   adherents: 'الأعضاء',
   emprunts: 'الاستعارات',
   settings: 'المعلومات',
@@ -21,6 +23,7 @@ const titles = {
 
 const addLabels = {
   livres: '+ إضافة كتاب',
+  emplacements: '+ إضافة موقع',
   adherents: '+ إضافة عضو',
   emprunts: '+ استعارة جديدة',
 };
@@ -178,6 +181,7 @@ function renderLivreHoverCard(livre) {
       <div class="font-semibold text-slate-900">${escapeHtml(livre.Titre)}</div>
       ${livre.Editeur ? `<div class="text-xs text-slate-500">${escapeHtml(livre.Editeur)}</div>` : ''}
       <div><span class="font-semibold text-slate-700">الفئة:</span> ${escapeHtml(livre.Categorie || '—')}</div>
+      <div><span class="font-semibold text-slate-700">الموقع:</span> ${livre.Rang && livre.Etage ? `طابق ${livre.Etage} صف ${escapeHtml(livre.Rang)}` : '—'}</div>
       <div><span class="font-semibold text-slate-700">المؤلف:</span> ${escapeHtml(livre.Auteur || '—')}</div>
       <div><span class="font-semibold text-slate-700">ISBN:</span> ${escapeHtml(livre.ISBN || '—')}</div>
       <div><span class="font-semibold text-slate-700">السنة:</span> ${escapeHtml(livre.Annee_Publication || '—')}</div>
@@ -237,6 +241,7 @@ async function loadView(view) {
   try {
     if (view === 'dashboard') await loadDashboard();
     else if (view === 'livres') await loadLivres();
+    else if (view === 'emplacements') await loadEmplacementsView();
     else if (view === 'adherents') await loadAdherents();
     else if (view === 'emprunts') await loadEmprunts();
     else if (view === 'settings') await loadSettings();
@@ -265,6 +270,7 @@ async function loadDashboard() {
 }
 
 async function loadLivres() {
+  await loadEmplacements();
   allLivres = await api('/livres');
   populateCategoryFilter();
   livresCurrentPage = 1;
@@ -420,11 +426,12 @@ function renderLivresTable() {
   const pageLivres = filteredLivres.slice(start, end);
 
   let html = `<table class="min-w-full wide-table text-sm text-slate-600"><thead><tr class="text-right text-slate-500">
-      <th class="px-4 py-3">العنوان</th><th class="px-4 py-3">الفئة</th><th class="px-4 py-3">المؤلف</th><th class="px-4 py-3">ISBN</th><th class="px-4 py-3">السنة</th><th class="px-4 py-3">المخزون</th><th class="px-4 py-3">المتاح</th><th class="px-4 py-3">الإنشاء / التحديث</th><th class="px-4 py-3"></th>
+      <th class="px-4 py-3">العنوان</th><th class="px-4 py-3">الفئة</th><th class="px-4 py-3">الموقع</th><th class="px-4 py-3">المؤلف</th><th class="px-4 py-3">ISBN</th><th class="px-4 py-3">السنة</th><th class="px-4 py-3">المخزون</th><th class="px-4 py-3">المتاح</th><th class="px-4 py-3">الإنشاء / التحديث</th><th class="px-4 py-3"></th>
     </tr></thead><tbody>
     ${pageLivres.map((l) => `<tr class="border-t border-orange-100">
       <td class="px-4 py-3"><strong class="text-slate-900">${l.Titre}</strong>${l.Editeur ? `<br><span class="text-slate-500">${l.Editeur}</span>` : ''}</td>
       <td class="px-4 py-3"><span class="rounded-xl bg-orange-100 px-2.5 py-1 text-xs font-medium text-orange-800">${l.Categorie ? esc(l.Categorie) : '—'}</span></td>
+      <td class="px-4 py-3">${l.Rang && l.Etage ? `ط ${l.Etage} / ص ${esc(l.Rang)}` : '—'}</td>
       <td class="px-4 py-3">${l.Auteur}</td>
       <td class="px-4 py-3">${l.ISBN}</td>
       <td class="px-4 py-3">${l.Annee_Publication || '—'}</td>
@@ -709,31 +716,102 @@ function bindPhotoPreview() {
   });
 }
 
+function formatEmplacementLabel(e, compact = false) {
+  if (compact) return `طابق ${e.Etage} — صف ${e.Rang}`;
+  return `${e.Nom_Categorie || '—'} — طابق ${e.Etage} — صف ${e.Rang}`;
+}
+
+function getUniqueCategories() {
+  const fromDb = Array.isArray(allCategories) ? allCategories.map((c) => c.Nom_Categorie) : [];
+  const fromEmplacements = Array.isArray(allEmplacements) ? allEmplacements.map((e) => e.Nom_Categorie).filter(Boolean) : [];
+  return [...new Set([...fromDb, ...fromEmplacements])].sort((a, b) => a.localeCompare(b, 'ar'));
+}
+
+function buildEmplacementOptions(emplacements, selectedId = null, compact = false) {
+  return emplacements.map(
+    (e) => `<option value="${e.ID_Emplacement}" ${selectedId === e.ID_Emplacement ? 'selected' : ''}>${esc(formatEmplacementLabel(e, compact))}</option>`
+  ).join('');
+}
+
+function renderLivreEmplacementFields(l = null) {
+  const categories = getUniqueCategories();
+  const selectedCategory = l?.Categorie || '';
+  const filtered = selectedCategory
+    ? allEmplacements.filter((e) => e.Nom_Categorie === selectedCategory)
+    : allEmplacements;
+
+  const categoryOptions = categories.map(
+    (cat) => `<option value="${esc(cat)}" ${cat === selectedCategory ? 'selected' : ''}>${esc(cat)}</option>`
+  ).join('');
+
+  const emplacementOptions = buildEmplacementOptions(filtered, l?.ID_Emplacement ?? null, Boolean(selectedCategory));
+  const noEmplacements = !allEmplacements.length;
+
+  return `
+    <div class="form-group"><label>الفئة</label>
+      <select name="filter_categorie" id="livre-categorie-filter" onchange="filterEmplacementsInModal(this.value)">
+        <option value="">كل الفئات</option>
+        ${categoryOptions}
+      </select>
+      <p class="mt-1 text-xs text-slate-500">اختياري — لتصفية قائمة المواقع حسب الفئة.</p>
+    </div>
+    <div class="form-group"><label>الموقع *</label>
+      <select name="id_emplacement" id="livre-emplacement-select" required ${noEmplacements ? 'disabled' : ''} onchange="syncCategoryFromEmplacement(this.value)">
+        <option value="">اختر موقعًا من قاعدة البيانات...</option>
+        ${emplacementOptions}
+      </select>
+      ${noEmplacements
+        ? '<p class="mt-2 text-sm text-rose-600">لا توجد مواقع في قاعدة البيانات — أضف موقعًا من قسم « المواقع » أو نفّذ adds.sql.</p>'
+        : `<p class="mt-2 text-xs text-slate-500">${allEmplacements.length} موقع متاح (فئة + طابق + صف).</p>`}
+    </div>`;
+}
+
+function filterEmplacementsInModal(category) {
+  const select = document.getElementById('livre-emplacement-select');
+  if (!select) return;
+
+  const filtered = category
+    ? allEmplacements.filter((e) => e.Nom_Categorie === category)
+    : allEmplacements;
+  const currentValue = parseInt(select.value, 10) || null;
+
+  select.innerHTML = `<option value="">اختر موقعًا من قاعدة البيانات...</option>${buildEmplacementOptions(
+    filtered,
+    filtered.some((e) => e.ID_Emplacement === currentValue) ? currentValue : null,
+    Boolean(category)
+  )}`;
+  select.disabled = filtered.length === 0;
+}
+
+function syncCategoryFromEmplacement(idEmplacement) {
+  const categorySelect = document.getElementById('livre-categorie-filter');
+  if (!categorySelect || !idEmplacement) return;
+
+  const emplacement = allEmplacements.find((e) => e.ID_Emplacement === parseInt(idEmplacement, 10));
+  if (emplacement?.Nom_Categorie) {
+    categorySelect.value = emplacement.Nom_Categorie;
+  }
+}
+
 function openAddModal() {
+  if (currentView === 'emplacements') {
+    openAddEmplacementModal();
+    return;
+  }
+  openAddModalAsync();
+}
+
+async function openAddModalAsync() {
   editId = null;
   if (currentView === 'livres') {
+    await loadEmplacements(true);
     openModal('إضافة كتاب', `
       <div class="form-group"><label>العنوان *</label><input name="titre" required></div>
       <div class="form-group"><label>ISBN *</label><input name="isbn" required placeholder="978-..."></div>
       <div class="form-group"><label>المؤلف *</label><input name="auteur" required></div>
       <div class="form-group"><label>الناشر</label><input name="editeur"></div>
       <div class="form-group"><label>سنة النشر</label><input name="annee_publication" type="number" min="1000" max="2050"></div>
-      <div class="form-group"><label>الموقع (اختياري)</label>
-        <select name="id_emplacement">
-          <option value="">اختر موقعًا...</option>
-          ${allEmplacements.map(e => `<option value="${e.ID_Emplacement}">${esc(e.Nom_Categorie || '—')} — طابق ${e.Etage} صف ${esc(e.Rang)}</option>`).join('')}
-        </select>
-        <div style="margin-top:6px;font-size:0.85rem;color:var(--muted)">أو أدخل اسم الفئة لإنشاء موقع جديد:</div>
-        <input name="categorie" list="categories-list" placeholder="اختر أو اكتب فئة...">
-        <datalist id="categories-list">
-          <option value="رواية">
-          <option value="تاريخ">
-          <option value="علوم">
-          <option value="أطفال">
-          <option value="شعر">
-          <option value="فلسفة">
-        </datalist>
-      </div>
+      ${renderLivreEmplacementFields()}
       <div class="form-group"><label>الكمية الإجمالية *</label><input name="quantite_totale" type="number" min="1" value="1" required></div>`);
   } else if (currentView === 'adherents') {
     openModal('إضافة عضو', `
@@ -777,6 +855,7 @@ async function openEmpruntModal() {
 
 async function editLivre(id) {
   editId = id;
+  await loadEmplacements(true);
   const l = await api(`/livres/${id}`);
   openModal('تعديل الكتاب', `
     <div class="form-group"><label>العنوان *</label><input name="titre" value="${esc(l.Titre)}" required></div>
@@ -784,22 +863,7 @@ async function editLivre(id) {
     <div class="form-group"><label>المؤلف *</label><input name="auteur" value="${esc(l.Auteur)}" required></div>
     <div class="form-group"><label>الناشر</label><input name="editeur" value="${esc(l.Editeur || '')}"></div>
     <div class="form-group"><label>السنة</label><input name="annee_publication" type="number" value="${l.Annee_Publication || ''}"></div>
-    <div class="form-group"><label>الموقع (اختياري)</label>
-      <select name="id_emplacement">
-        <option value="">اختر موقعًا...</option>
-        ${allEmplacements.map(e => `<option value="${e.ID_Emplacement}" ${l.ID_Emplacement===e.ID_Emplacement ? 'selected' : ''}>${esc(e.Nom_Categorie || '—')} — طابق ${e.Etage} صف ${esc(e.Rang)}</option>`).join('')}
-      </select>
-      <div style="margin-top:6px;font-size:0.85rem;color:var(--muted)">أو أدخل اسم الفئة لإنشاء موقع جديد:</div>
-      <input name="categorie" list="categories-list" value="${esc(l.Categorie || '')}" placeholder="اختر أو اكتب فئة...">
-      <datalist id="categories-list">
-        <option value="رواية">
-        <option value="تاريخ">
-        <option value="علوم">
-        <option value="أطفال">
-        <option value="شعر">
-        <option value="فلسفة">
-      </datalist>
-    </div>
+    ${renderLivreEmplacementFields(l)}
     <div class="form-group"><label>الكمية الإجمالية *</label><input name="quantite_totale" type="number" min="1" value="${l.Quantite_Totale}" required></div>`);
 }
 
@@ -846,16 +910,33 @@ async function handleFormSubmit(e) {
     }
   }
 
-  const body = Object.fromEntries([...fd.entries()].filter(([k]) => k !== 'photo_file' && !(k === 'Photo_B64' && !fd.get('Photo_B64'))));
+  const body = Object.fromEntries([...fd.entries()].filter(([k]) => k !== 'photo_file' && k !== 'filter_categorie' && !(k === 'Photo_B64' && !fd.get('Photo_B64'))));
 
   if (body.annee_publication) body.annee_publication = parseInt(body.annee_publication, 10);
   if (body.quantite_totale) body.quantite_totale = parseInt(body.quantite_totale, 10);
   if (body.id_livre) body.id_livre = parseInt(body.id_livre, 10);
   if (body.id_adherent) body.id_adherent = parseInt(body.id_adherent, 10);
   if (body.id_emplacement) body.id_emplacement = parseInt(body.id_emplacement, 10);
+  if (body.id_categorie) body.id_categorie = parseInt(body.id_categorie, 10);
+  if (body.etage) body.etage = parseInt(body.etage, 10);
+  delete body.filter_categorie;
 
   try {
+    if (currentView === 'emplacements') {
+      if (body.id_categorie) delete body.nom_categorie;
+      else delete body.id_categorie;
+      if (body.rang) body.rang = String(body.rang).trim().toUpperCase();
+      await api('/emplacements', { method: 'POST', body: JSON.stringify(body) });
+      toast('تم إضافة الموقع');
+      closeModal();
+      loadView('emplacements');
+      return;
+    }
     if (currentView === 'livres') {
+      if (!body.id_emplacement) {
+        toast('يرجى اختيار موقع من قاعدة البيانات', 'error');
+        return;
+      }
       if (editId) await api(`/livres/${editId}`, { method: 'PUT', body: JSON.stringify(body) });
       else await api('/livres', { method: 'POST', body: JSON.stringify(body) });
     } else if (currentView === 'adherents') {
@@ -1049,10 +1130,114 @@ loadSettings();
 // load emplacements for livre modal
 loadEmplacements();
 
-async function loadEmplacements() {
+async function loadEmplacements(showError = false) {
   try {
-    allEmplacements = await api('/emplacements');
+    const emps = await api('/emplacements');
+    allEmplacements = Array.isArray(emps) ? emps : [];
   } catch (err) {
     allEmplacements = [];
+    if (showError) toast(`تعذّر تحميل المواقع: ${err.message}`, 'error');
+  }
+
+  try {
+    const cats = await api('/emplacements/categories');
+    allCategories = Array.isArray(cats) ? cats : [];
+  } catch (_) {
+    const seen = new Map();
+    allEmplacements.forEach((e) => {
+      if (e.ID_Categorie && e.Nom_Categorie) {
+        seen.set(e.ID_Categorie, { ID_Categorie: e.ID_Categorie, Nom_Categorie: e.Nom_Categorie });
+      }
+    });
+    allCategories = [...seen.values()];
   }
 }
+
+async function loadEmplacementsView() {
+  await loadEmplacements();
+  renderEmplacementsTable();
+}
+
+function renderEmplacementsTable() {
+  const container = document.getElementById('emplacements-table');
+  if (!container) return;
+
+  if (!allEmplacements.length) {
+    container.innerHTML = '<p class="py-8 text-center text-slate-400">لا توجد مواقع — انقر على « إضافة موقع »</p>';
+    return;
+  }
+
+  container.innerHTML = `<table class="min-w-full text-sm text-slate-600"><thead><tr class="text-right text-slate-500">
+      <th class="px-4 py-3">الفئة</th><th class="px-4 py-3">الطابق</th><th class="px-4 py-3">الصف</th><th class="px-4 py-3">عدد الكتب</th><th class="px-4 py-3"></th>
+    </tr></thead><tbody>
+    ${allEmplacements.map((e) => `<tr class="border-t border-orange-100">
+      <td class="px-4 py-3"><span class="rounded-xl bg-orange-100 px-2.5 py-1 text-xs font-medium text-orange-800">${esc(e.Nom_Categorie || '—')}</span></td>
+      <td class="px-4 py-3">${e.Etage}</td>
+      <td class="px-4 py-3">${esc(e.Rang)}</td>
+      <td class="px-4 py-3">${e.Nb_Livres ?? 0}</td>
+      <td class="px-4 py-3"><button class="rounded-xl bg-rose-500/90 px-3 py-1.5 text-xs text-white disabled:opacity-40" ${e.Nb_Livres > 0 ? 'disabled title="موقع يحتوي على كتب"' : ''} onclick="deleteEmplacement(${e.ID_Emplacement})">حذف</button></td>
+    </tr>`).join('')}
+  </tbody></table>`;
+}
+
+async function openAddEmplacementModal() {
+  await loadEmplacements();
+  const categories = getUniqueCategories();
+  const categoryOptions = categories.map((cat) => `<option value="${esc(cat)}">${esc(cat)}</option>`).join('');
+
+  openModal('إضافة موقع', `
+    <div class="form-group"><label>الفئة *</label>
+      <select name="id_categorie" id="emplacement-categorie-select" onchange="toggleNewCategoryField(this.value)">
+        <option value="">— فئة جديدة —</option>
+        ${allCategories.map((c) => `<option value="${c.ID_Categorie}">${esc(c.Nom_Categorie)}</option>`).join('')}
+      </select>
+    </div>
+    <div class="form-group" id="new-category-group">
+      <label>اسم الفئة الجديدة *</label>
+      <input name="nom_categorie" list="emplacement-categories-list" placeholder="مثال: تاريخ">
+      <datalist id="emplacement-categories-list">${categoryOptions}</datalist>
+    </div>
+    <div class="form-group"><label>الصف (A–Z) *</label><input name="rang" required maxlength="1" placeholder="A" pattern="[A-Za-z]" style="text-transform:uppercase"></div>
+    <div class="form-group"><label>الطابق (1–20) *</label><input name="etage" type="number" min="1" max="20" required value="1"></div>
+    <p class="text-xs text-slate-500">كل موقع = فئة + طابق + صف (حسب قاعدة البيانات).</p>`);
+}
+
+function toggleNewCategoryField(value) {
+  const group = document.getElementById('new-category-group');
+  const input = document.querySelector('#modal-form input[name="nom_categorie"]');
+  if (!group || !input) return;
+  if (value) {
+    group.classList.add('hidden');
+    input.removeAttribute('required');
+    input.value = '';
+  } else {
+    group.classList.remove('hidden');
+    input.setAttribute('required', 'required');
+  }
+}
+
+async function deleteEmplacement(id) {
+  const result = await Swal.fire({
+    title: 'حذف الموقع؟',
+    text: 'لا يمكن التراجع عن هذا الإجراء',
+    icon: 'warning',
+    showCancelButton: true,
+    confirmButtonText: 'حذف',
+    cancelButtonText: 'إلغاء',
+    confirmButtonColor: '#dc2626',
+  });
+  if (!result.isConfirmed) return;
+
+  try {
+    await api(`/emplacements/${id}`, { method: 'DELETE' });
+    toast('تم حذف الموقع');
+    loadView('emplacements');
+  } catch (err) {
+    toast(err.message, 'error');
+  }
+}
+
+window.filterEmplacementsInModal = filterEmplacementsInModal;
+window.syncCategoryFromEmplacement = syncCategoryFromEmplacement;
+window.toggleNewCategoryField = toggleNewCategoryField;
+window.deleteEmplacement = deleteEmplacement;
