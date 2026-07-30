@@ -24,6 +24,7 @@
         <nav class="mt-6 space-y-2">
           <button class="nav-btn active w-full rounded-xl px-4 py-3 text-right text-sm font-medium text-slate-700 transition" data-view="dashboard">لوحة التحكم</button>
           <button class="nav-btn w-full rounded-xl px-4 py-3 text-right text-sm font-medium text-slate-600 transition" data-view="livres">الكتب</button>
+          <button class="nav-btn w-full rounded-xl px-4 py-3 text-right text-sm font-medium text-slate-600 transition" data-view="emplacements">المواقع</button>
           <button class="nav-btn w-full rounded-xl px-4 py-3 text-right text-sm font-medium text-slate-600 transition" data-view="adherents">الأعضاء</button>
           <button class="nav-btn w-full rounded-xl px-4 py-3 text-right text-sm font-medium text-slate-600 transition" data-view="emprunts">الاستعارات</button>
           <button class="nav-btn w-full rounded-xl px-4 py-3 text-right text-sm font-medium text-slate-600 transition" data-view="settings">المعلومات</button>
@@ -64,6 +65,10 @@
             </button>
           </div>
           <div class="overflow-x-auto rounded-3xl border border-orange-200 bg-white/90 p-4 shadow-lg shadow-orange-100/80 backdrop-blur" id="livres-table"></div>
+        </section>
+
+        <section id="view-emplacements" class="view space-y-4">
+          <div class="overflow-x-auto rounded-3xl border border-orange-200 bg-white/90 p-4 shadow-lg shadow-orange-100/80 backdrop-blur" id="emplacements-table"></div>
         </section>
 
         <section id="view-adherents" class="view space-y-4">

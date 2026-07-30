@@ -1,3 +1,4 @@
+use master
 -- ============================================================================
 -- SCRIPT : Création et Optimisation de la Base de Données "GestionBibliotheque"
 -- Cible  : SQL Server (Optimisé pour un accès natif via Delphi FireDAC)
